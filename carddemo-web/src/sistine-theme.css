@@ -1,0 +1,2406 @@
+/*
+  Sistine theme — aggregator. The theme is authored as focused partials under app/theme/; Tailwind v4
+  bundles these relative imports itself (no postcss-import needed). ORDER MATTERS:
+    - package imports come first (CSS requires @import before other rules),
+    - engine.css must precede presets.css / frescoes.css (a preset's --glass-tint-h overrides the
+      engine default by SOURCE ORDER at equal specificity),
+    - inside tokens.css, .dark comes after :root (same-element ties resolve by source order).
+  Consumers install a FLATTENED single-file build of this graph (registry/theme/globals.css, generated
+  by scripts/build-theme.mjs) — run `bun run registry:check` after editing any partial and commit
+  registry/theme + public/r. Site-only CSS (the Geist font mapping) lives in app/site.css, which imports
+  this file, so nothing the documentation site defines leaks into the shipped theme.
+*/
+@import "tailwindcss";
+@import "tw-animate-css";
+/* ── Registrations — @custom-variant + @property pins for JS-only tokens ──────
+   Loaded first so the dark variant and typed properties exist before anything composes them. */
+
+/* Class-based dark mode, v4-standard form: matches the `.dark` element ITSELF and its descendants, so
+   consumers can toggle `.dark` on any wrapper (not just <html> / next-themes), at zero specificity
+   (`:where`) so `dark:` overrides by cascade order like every other variant. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Composable, NON-inheriting glow layer: the `glow` effect/prop sets it, and every glass box-shadow
+   folds in `var(--glow-layer, …)` so the glow rides INSIDE each material's and page style's shadow
+   (they set --srf-shadow; the glow is appended after it) instead of being replaced by it. inherits:false
+   keeps a glowing surface from lighting up its glass children. */
+@property --glow-layer {
+  syntax: "*";
+  inherits: false;
+}
+
+/* The veil floor, NON-inheriting for the same reason as the glow: `glass-veil` sets it on the element
+   and `glass` paints it as that element's background-color. Inherited, a plain glass surface nested in
+   a veiled menu, popover, tooltip, select or card painted its PARENT's veil as its own floor (under the
+   Opaque page style: flat white in light, black in dark). A child without a veil of its own now falls
+   back to its material's --srf-bg-color, as it would anywhere else. */
+@property --veil-floor {
+  syntax: "*";
+  inherits: false;
+}
+/* Its twin for the solidify layer (see @utility glass-veil): a veiled parent must not restore the layer
+   on a child that dropped it. */
+@property --veil-solidify {
+  syntax: "*";
+  inherits: false;
+}
+/* The ink border colour (glass-border-ink): an inked panel must not ink the borders of the glass inside it. */
+@property --brd-ink {
+  syntax: "*";
+  inherits: false;
+}
+
+/* Prebaked-frost offsets (hooks/use-glass-backdrop.ts writes these per bubble). Non-inheriting so a
+   nested bubble never samples its parent's screen position for a frame before its own sync. */
+@property --gx {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --gy {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Gradient-text tokens are consumed ONLY from JS inline styles (components/gradient-text.tsx) — no CSS
+   rule references them, so Lightning CSS's optimizer would silently drop them (the same failure mode as
+   the harmonic tokens below). Registered here to pin them. DO NOT REMOVE. */
+@property --gradient-text {
+  syntax: "*";
+  inherits: true;
+}
+@property --gradient-text-contrast {
+  syntax: "*";
+  inherits: true;
+}
+/* ── Harmonic color registrations — compacted one-liners (biome's CSS formatter is excluded for this
+   file; see biome.json). WHY these exist: the comment below. */
+
+/* ── Harmonic token registration ──────────────────────────────────────────────────────────────
+   The harmonic tokens (--harmony-h, --hue-*, --color-*, --mono-*, defined in engine.css) are
+   consumed ONLY from JS / inline styles (HarmonicSwatchesDemo, AutoForeground) — never referenced by
+   a CSS rule. Tailwind v4's Lightning CSS optimizer constant-folds + dead-code-eliminates any custom
+   property no CSS rule uses, which silently dropped this ENTIRE subgraph from the COMPILED stylesheet
+   (so every `oklch(L C var(--hue-*))` / `var(--color-*)` resolved to nothing at runtime). Registering
+   them via @property marks them as first-class typed API the optimizer must preserve. DO NOT REMOVE. */
+@property --harmony-h { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --color-chroma { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --mono-chroma { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-base { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-complement { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-analogous-1 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-analogous-2 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-split-1 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-split-2 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-triad-1 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-triad-2 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-tetrad-1 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-tetrad-2 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-tetrad-3 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-square-1 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-square-2 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --hue-square-3 { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --color-complement { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --color-analogous-1 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --color-analogous-2 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --color-split-1 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --color-split-2 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --color-triad-1 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --color-triad-2 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mono-1 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mono-2 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mono-3 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+/* ── Design tokens — @theme mapping, base shadcn colors, mode knobs + shadow twins, base layer ─────
+   :root carries light values + the LEAF mode knobs the engine composes; .dark carries the dark twins.
+   .dark must come after :root (same-element ties resolve by source order on html.dark). */
+
+@theme inline {
+  /* Easing. Tailwind's built-ins are deliberately gentle; these are the stronger variants UI motion
+     wants, exposed as `ease-out` / `ease-in-out` / `ease-drawer` utilities.
+       out    — anything ENTERING or EXITING. Starts fast, so the first frame (the one the user is
+                actually watching) already moves.
+       in-out — things MOVING on screen that neither enter nor leave: carousels, sliders.
+       drawer — a slower settle for panels that slide in from an edge, so a large surface arrives with
+                weight instead of snapping.
+     There is deliberately no `ease-in` token: it delays the first frame, which is the one moment the
+     interface most needs to feel responsive. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Anything with a bare `transition` and no `ease-*` inherits this. Tailwind ships
+     cubic-bezier(0.4, 0, 0.2, 1) — symmetric, so it eases IN as well, and the first frame barely
+     moves. Same curve as --ease-out, written literally because @theme inline doesn't emit the vars
+     it inlines. */
+  --default-transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-foreground-soft: var(--foreground-soft);
+  --color-foreground-strong: var(--foreground-strong);
+  --color-foreground-ui: var(--foreground-ui);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 1.25rem;
+  /* Shadow ink — the base black/white that every shadow, pressed-inset, and bevel highlight is built
+     from. Mode-invariant (only the ALPHA changes per surface/mode), so apply alpha at the call site:
+     oklch(var(--shadow-ink) / <a>). One knob to retint every shadow at once (e.g. a cooler, less-flat
+     ink) instead of hunting down dozens of oklch(0% 0 0) / oklch(100% 0 0) literals. */
+  --shadow-ink: 0% 0 0; /* drop + pressed-inset shadow color */
+  --shadow-highlight: 100% 0 0; /* inner bevel / top highlight */
+  /* Active/pressed shadow SCALE, built from the ink above and mode-aware (deeper in dark; overridden in
+     .dark), so components reference these with NO dark: twin. Depth ladder — all inset "push-in" presses
+     except --active-shadow, which LIFTS the selected tab/toggle. --press-shadow-strong shares the
+     standard press's 0.2 primary and stacks a contact layer (was 0.15; raised so the two-layer presses
+     build ON the single-layer one instead of undercutting it):
+       --press-shadow-sm     — subtle press          (ghost, outline)
+       --press-shadow        — standard press         (default, gradient, opaque)
+       --press-shadow-strong — firm two-layer press   (glass, destructive, secondary, frosted)
+       --press-shadow-deep   — deepest press          (crystal)
+       --active-shadow       — selected-control LIFT   (tabs, toggle) */
+  --press-shadow-sm: inset 0 1px 2px oklch(var(--shadow-ink) / 0.1);
+  --press-shadow: inset 0 2px 4px oklch(var(--shadow-ink) / 0.2);
+  --press-shadow-strong: inset 0 2px 4px oklch(var(--shadow-ink) / 0.2), inset 0 1px 2px oklch(var(--shadow-ink) / 0.15);
+  --press-shadow-deep: inset 0 2px 4px oklch(var(--shadow-ink) / 0.25), inset 0 1px 2px oklch(var(--shadow-ink) / 0.2);
+  --active-shadow: 0 1px 3px oklch(var(--shadow-ink) / 0.1), inset 0 1px 1px oklch(var(--shadow-highlight) / 0.5);
+  /* Selected-control FILL — the twin of --active-shadow, which had the lift but no surface, so tabs and
+     toggle-group each hardcoded `bg-white/80 dark:bg-white/20`. The colour is composed in engine.css;
+     these are its knobs.
+     The two modes source their hue by DIFFERENT routes, and that asymmetry is the whole design.
+     DARK is structurally theme-driven: the fill is chroma 0 at alpha 0.2, so 100% of the colour is the
+     tinted surface showing through — the chip literally IS the theme surface, lifted. Nothing can make
+     it drift off-theme.
+     LIGHT cannot use that route. Show-through only carries hue if the surface has hue to give, and a
+     light glass surface measures around chroma 0.018 (the sheet is itself capped by --glass-tint-c-hi
+     at 0.025 near white). So at alpha 0.9 the fill supplies ~94% of the chip's colour and has to carry
+     the tint ITSELF.
+     Which makes the fill's own lightness the binding constraint, because the near-white ceiling
+     collapses hue-dependently — 0.0323 at L 93, 0.061 at L 87, and only 0.0091 by L 98. At the old
+     L 93 the cap was 0.031 and the chip delivered an RGB spread of 20: nominally theme-tinted, visibly
+     neutral, which is why day did not read as theme-driven while night did. L 87 roughly doubles the
+     available chroma and the delivered spread (37), at the cost of sitting 3.6 L BELOW the tab list
+     rather than 1.8 above it — the lift is carried by --active-shadow, so the chip still reads
+     selected, now as a tinted fill rather than a white one.
+     Capped with min() like --border and the chakra body, so selenite (chroma 0) stays exactly neutral
+     and no preset can push the fill out of gamut. */
+  --active-l: 87%;
+  --active-c-max: 0.055; /* ≤ 0.061, the L-87 ceiling floor (lapis h268) */
+  --active-a: 0.9;
+  /* ── Mode knobs ──────────────────────────────────────────────────────────
+     Single-number dials the glass engine's mode-derived block composes (light values here, dark twins in
+     .dark). LEAVES ONLY — none composes a tint var (check-theme invariant 1), so they may live on the bare
+     blocks and inherit into tint scopes, where the engine re-resolves the derived tokens. */
+  --glass-sheet-a: 0.11; /* sheer glass sheet base alpha (per-stop offsets ride on top) */
+  --glass-sheet-a1: 0.04; /* the sheet's TOP-stop offset (dark tapers it to 0.03) */
+  --glass-frost-boost: 0.1; /* frosted = the sheet lifted by this much */
+  --glass-border-a: 0.16; /* glass edge alpha — a white rim needs more presence on light backdrops */
+  /* Ink border alpha (borderColor="ink" / glass-border-ink): how much of --foreground the line takes.
+     Mode-invariant because --foreground already flips polarity per mode; 0.5 keeps the line clearly
+     softer than text while clearing the APCA non-text floor on every preset (check-contrast [ink]); 0.55 since
+     opaque cards carry the wash, whose lighter dark surface left goldstone's line at 29.9 Lc. */
+  --glass-border-ink-a: 0.55;
+  /* Crystal gloss defaults (the demo's Light/Tint sliders override inline). --glass-gloss-tint is
+     mode-shared; --glass-gloss-l is NOT — see its twin below. AutoForeground's crystal tiers mirror
+     --glass-gloss-l (97 light / 66 dark) as their snapshot-path fallback — keep all three in step. */
+  --glass-diffuse: 12px; /* readability blur FLOOR the glass-diffuse axis raises surfaces to (opaque ignores it) */
+  /* Gloss ink lightness ("Light" in the demo) — a MODE TWIN, because a gloss is defined relative to
+     the surface under it and those surfaces are 68 L apart. The crystal floor computes to L 96.5 in
+     light and L 28 in dark, so a single shared value cannot be a highlight in both: at 66 the top stop
+     lifts dark by +15.2 L (a specular) and darkens light by −12.2 L (a smudge — the same "grey
+     speculars read as grime" failure the shadow bevel comment warns about).
+     97 is the light twin: composited it lands +0.2 L over the surface, which is all the headroom that
+     exists above L 96.5. The cost is a chroma ceiling, and it is strongly HUE-dependent rather than
+     uniform — at L 97 it ranges from 0.0686 for peridot (h128) down to 0.0136 for lapis (h268).
+     CORRECTION, measured in WebKit: an over-ceiling oklch() is NOT gamut-mapped down to that ceiling.
+     It is CLIPPED per channel, which lands FURTHER from the request, not nearer:
+       oklch(97% 0.0686 128) -> 232,255,205   (the ceiling — what the model predicts)
+       oklch(97% 0.2975 128) -> 185,255,0     (what actually shipped: pure chartreuse)
+     So the Tint multiplier did not "do real work up to each hue's own ceiling"; above the ceiling it
+     drove the ink to a fully saturated primary. Every preset was affected — turquoise and aquamarine
+     both clipped to 0,255,255, i.e. the two were indistinguishable — and moonstone reached 255,222,33,
+     the egg-yolk cast that made light mode read yellow. --glass-gloss-c-max below is the fix, sized the
+     way --glass-chakra-c-max is: the TIGHTEST ceiling across every preset hue, so no preset clips and
+     all of them deliver 100% of what they ask for. */
+  --glass-gloss-l: 97;
+  /* Gloss chroma cap — the L-97 twin. 0.0136 is lapis (h268), the tightest of the 17 presets; 0.013
+     sits just under it. Light gloss is therefore near-achromatic by necessity, not by choice: sRGB
+     simply holds no more colour that close to white, and asking for more clips rather than tints. */
+  --glass-gloss-c-max: 0.013;
+  /* Gloss chroma multiplier over the tint ("Tint"). Calibrated for the DEFAULT tint (0.018 × 4.25 =
+     0.077, comfortably in gamut); a preset multiplies up from a much higher base, so the product is
+     clamped to 0.3 where --glass-gloss-ink composes it — sRGB holds ~0.32 chroma at its very best hue
+     and far less at L=66, so beyond that the browser, not the theme, is picking the color. Jewels
+     (0.07 × 4.25 = 0.298) sit under the clamp and are unaffected; only the status tints hit it. */
+  --glass-gloss-tint: 4.25;
+  --glass-wash-l: 72%; /* tint wash lightness — deeper in dark so the tint reads over dark backdrops */
+  --glass-wash-c-mult: 2.5; /* tint wash chroma multiplier (moonstone night quiets it to 2) */
+  --glass-accent-l: 0.6; /* accent envelope — lifted in dark so the hue pops */
+  --glass-accent-c: 0.15;
+  --glass-glow-lc: 0.62 0.2; /* glow L+C pair */
+  --glass-glow-a: 0.45;
+  --harmonic-l: 0.6; /* --color-* accent-tier lightness */
+  --mono-l-1: 0.75; /* mono ramp steps (irregular light↔dark lifts — three dials, not one) */
+  --mono-l-2: 0.6;
+  --mono-l-3: 0.45;
+  --gradient-l: 0.6; /* brand-gradient envelope (matches --glass-accent-l/-c) */
+  --gradient-c: 0.15;
+  --gradient-contrast-l: 0.32; /* contrast gradient text: dark-on-light here, light-on-dark in .dark */
+  --gradient-contrast-c: 0.14;
+  --glass-crystal-l: 96; /* crystal body lightness — see --glass-crystal-bg; 100 carries zero chroma */
+  --glass-crystal-bg-a: 0.3; /* crystal floor alpha (near-clear in dark) */
+  /* glass-solid floor — the "how solid" dial (0 = sheer, 1 = fully solid; shared by light/dark) + the
+     mode floor lightness; composed in @utility glass-veil so a scoped --glass-solid-a resolves there. */
+  --glass-solid-a: 0.65;
+  --glass-solid-l: 99%;
+  /* Opaque tint BODY lightness (plain number → % in the engine). The header L slider drives this; the
+     opaque floor color AND AutoForeground's --foreground-opaque banding both read it, so they can't
+     drift. LOWER = deeper tint.
+     L AND the c-scale below together absorb the retired opaque SHEET (see materials.css). --glass-bg was a
+     near-white gradient at ~0.11 alpha, so it did two things to this floor: lightened it AND desaturated
+     it. Compensating with lightness alone reproduced only half of that — it left the floor too saturated,
+     and pushing L further toward white also SHRINKS the sRGB chroma ceiling, which blew the opaque body
+     past check-gamut's 4.6× budget (lapis hit 5.46×). Moving both knobs reproduces both effects and stays
+     inside the budget at 4.47×. Fitted across the 14 presets: worst OKLab dE 0.0021, mean 0.0009 — an
+     order of magnitude under a just-noticeable difference, so the surface is unchanged to the eye.
+     Moonstone pins its own pair (presets.css); its floor is near-white, where the sheet did far less. */
+  /* L93. The opaque card is the glass stack at full opacity: this floor plus the same tint WASH every
+     other material carries (materials.css). It used to be L88 with no wash, which made the floor carry
+     the tint on its own, and near white that cannot work: the sRGB ceiling collapses, so the jewels sat
+     at 97% of it and still read pastel, while greens and teals got half the chroma of their glass
+     siblings. With the wash doing the tinting, the floor's job is the one the backing under sheer glass
+     does (L92, --glass-solidify-l), and 93 is where floor + wash lands within 0.7 L of each preset's
+     glass surface (it has no lighter page showing through to make up the last point) while body text
+     keeps the 76.5 margin on every preset (tightest: destructive 76.6). */
+  --glass-opaque-l: 93;
+  /* 0.85, down from 1.26. The old value only looked large: it was immediately clipped to the shared
+     0.042 cap, so every preset rendered the SAME chroma regardless of its tint. Presets now pin their
+     own --glass-opaque-c-max (their hue's real ceiling at L88), and 0.85 is the multiplier that lets
+     each one reach it. Net effect vs the old flat 0.042: +7% to +88% depending on hue. */
+  --glass-opaque-c-scale: 0.85;
+  /* Opaque floor chroma cap — the near-white sibling of --glass-tint-c-hi / --glass-chakra-c-max /
+     --glass-gloss-c-max, and the last surface that lacked one. Without a cap the floor multiplied raw
+     tint chroma this close to white and clipped for most of the palette.
+     FALLBACK ONLY: the 12 jewels each pin their own above (their hue's real ceiling at L88); this
+     covers the 9 scopes that don't — the 4 frescoes, the 4 status tints and moonstone. Sizing the
+     SHARED cap to the tightest hue is the mistake that came before: one number low enough for amber
+     (h75, ceiling 0.036 at L88) left peridot at 18% of its own much larger ceiling. So this is
+     deliberately not the tightest — per-hue pins are, and scripts/check-gamut.mjs sweeps every scope
+     against its real ceiling rather than trusting this number. */
+  --glass-opaque-c-max: 0.055;
+  /* The share of that cap the opaque FLOOR may use. The caps above are each hue's ceiling at L88 (the
+     solidify backing derives its own from them too), and at the floor's L93 the ceiling is 55–90% of
+     that depending on hue; 0.55 keeps the tightest (tourmaline) at 0.96 of its ceiling. The floor
+     needs little chroma now that the wash carries the tint. Dark sets 1: its floor sits mid-dark, where
+     every preset's ask is far inside its ceiling. */
+  --glass-opaque-cap-scale: 0.55;
+  /* ── Solidify floor — the opaque backing UNDER sheer glass ───────────────────
+     `glass` paints --glass-solidify (this colour at --glass-opacity) as the bottom background-image
+     layer of every SHEER material, so it is ~70% of what page/crystal/chakra text actually sits on.
+     It used to be --glass-opaque-bg itself, which conflated two different jobs: the colour an OPAQUE
+     CARD shows, and the backing that sets sheer text contrast. Opaque cards explicitly drop this layer
+     (materials.css, --srf-solidify: none — it would be C over C), so the two were never actually the
+     same surface; they only shared a token.
+     Splitting them is what lets the sheer floor rise without repainting opaque cards. It is the right
+     lever for text contrast because it is the only one with real WEIGHT in the composite (0.7) that is
+     not part of a preset's declared identity: --glass-wash-l is the theme COLOUR (moving it changes
+     what lapis IS), and --glass-tint-a is already per-mode and desaturates. Measured across all 17
+     scopes, L92 is what puts every preset's body text over the 75 floor with the 1.5 Lc margin, with
+     no preset's tint tokens touched. DARK needs none of this (it clears everywhere already), so it
+     pins both back to the opaque floor below and nothing changes there. */
+  --glass-solidify-l: 92;
+  /* The floor's chroma ceiling collapses as it lightens, so the L88 caps above would clip here. Rather
+     than 17 new per-preset numbers, derive from the ones each preset already declares: across the
+     palette the L92/L88 ceiling ratio runs 0.60–0.90, and 0.65 lands every scope INSIDE its real
+     ceiling (worst 0.99×, verified by scripts/check-gamut.mjs). Hues that peak light — peridot,
+     turquoise, aventurine, amber, aquamarine — are not bound by it at all and keep 100% of their
+     surface chroma; the dark-peaking arc keeps 80–86%. */
+  --glass-solidify-c-max: calc(var(--glass-opaque-c-max, 0.055) * 0.65);
+  /* ── Chakra — the step-cut material (between opaque and crystal) ─────────────
+     Every other material is lit from ONE direction: --glass-shadow carries a bright top bevel and a
+     dark bottom shade, so surfaces read as a lit dome. Chakra lights all FOUR edges as mitered facets
+     (a conic-gradient with hard stops on the diagonals, composed in engine.css), so it reads as a
+     step-cut gem instead.
+     The facets are pure LUMINANCE overlays — --shadow-highlight / --shadow-ink at these alphas, chroma
+     0 — not tinted colors. Two reasons, and they are the same reason: (1) the theme hue already comes
+     through from the tinted body floor beneath, and a translucent white/black over it shifts lightness
+     while preserving hue; (2) a bright facet sits near L96 in light mode, where the sRGB chroma ceiling
+     across the 17 presets collapses to 0.0182 — a tinted highlight there would be gamut-mapped by the
+     browser at nearly every preset. This is the theme's existing rule for the top bevel ("a specular,
+     not a shadow; grey speculars read as grime"), applied to all four sides.
+     The alphas are irregular mode TWINS, not one knob: the same alpha buys a very different lightness
+     step over an L88 body than over an L28 one. They are solved so BOTH modes span 18 L end to end —
+     light 94.0 > 90.5 > 88.0 > 83.0 > 76.0, dark 38.0 > 32.0 > 28.0 > 24.0 > 20.0 (top, left, table,
+     right, bottom). Light comes from the top-left, matching the 135° axis of --glass-bg. */
+  --glass-chakra-l: 88; /* body/table lightness */
+  /* Body alpha — the "between crystal and opaque" dial, and now genuinely that across the WHOLE
+     surface: crystal's floor sits at 0.3, opaque at 1. Nothing is painted over the middle any more
+     (the cut moved into box-shadow), so this alone decides how much backdrop shows, and glass-diffuse
+     / --glass-opacity modulate it the same way they do on crystal. */
+  --glass-chakra-a: 0.62;
+  --glass-chakra-c-max: 0.055; /* body chroma cap — ≤ 0.0564, the L-88 ceiling floor (lapis h268) */
+  --glass-chakra-step: 3px; /* width of ONE bevel step (the frame is two) */
+  --glass-chakra-facet-t-a: 0.5; /* top    — highlight, +6.0 L */
+  --glass-chakra-facet-l-a: 0.208; /* left   — highlight, +2.5 L */
+  --glass-chakra-facet-r-a: 0.057; /* right  — ink,       −5.0 L */
+  --glass-chakra-facet-b-a: 0.136; /* bottom — ink,      −12.0 L */
+  /* ── Glass shadows — mode TWINS (not knobs: the light↔dark alpha ratios AND layer structures are
+     irregular). They compose only --shadow-ink/-highlight, never tint vars, so bare placement is legal.
+     LIGHT twins carry extra definition layers dark mode gets for free (a light surface on a dark page
+     separates itself): a tight CONTACT drop + 1px dark outer HAIRLINE define the edge on same-lightness
+     backdrops, and a directional BEVEL (bright top inner edge, ink bottom inner edge) makes pills read
+     convex instead of printed. The last layer flips family per mode: dark's white inner GLOW (luminous
+     glass) becomes an ink VIGNETTE in light — a white wash on a light surface brightens without
+     defining, while a faint vignette reads as glass thickness. (Frosted keeps its white glow in both
+     modes: milkiness IS that material.) The top bevel stays WHITE in both — it's a specular, not a
+     shadow; grey speculars read as grime. Layer order: ambient drop, contact drop, hairline, top
+     bevel, bottom shade, inner glow/vignette. */
+  --glass-shadow:
+    0 4px 16px oklch(var(--shadow-ink) / 0.13), 0 1px 3px oklch(var(--shadow-ink) / 0.11), 0 0 0 1px oklch(var(--shadow-ink) / 0.05),
+    0 1px 0 oklch(var(--shadow-highlight) / 0.4) inset, 0 -1px 0 oklch(var(--shadow-ink) / 0.08) inset,
+    0 0 12px oklch(var(--shadow-ink) / 0.05) inset;
+  --glass-shadow-lg:
+    0 8px 32px oklch(var(--shadow-ink) / 0.16), 0 2px 6px oklch(var(--shadow-ink) / 0.12), 0 0 0 1px oklch(var(--shadow-ink) / 0.05),
+    0 1px 0 oklch(var(--shadow-highlight) / 0.45) inset, 0 -1px 0 oklch(var(--shadow-ink) / 0.09) inset,
+    0 0 20px oklch(var(--shadow-ink) / 0.06) inset;
+  --glass-shadow-sm:
+    0 2px 8px oklch(var(--shadow-ink) / 0.1), 0 1px 2px oklch(var(--shadow-ink) / 0.09), 0 0 0 1px oklch(var(--shadow-ink) / 0.04),
+    0 1px 0 oklch(var(--shadow-highlight) / 0.35) inset, 0 -1px 0 oklch(var(--shadow-ink) / 0.07) inset,
+    0 0 8px oklch(var(--shadow-ink) / 0.04) inset;
+  --glass-frosted-border: oklch(100% 0 0 / 0.3);
+  --glass-frosted-shadow:
+    0 8px 32px oklch(var(--shadow-ink) / 0.17), 0 2px 6px oklch(var(--shadow-ink) / 0.13), 0 0 0 1px oklch(var(--shadow-ink) / 0.05),
+    0 1px 0 oklch(var(--shadow-highlight) / 0.5) inset, 0 -1px 0 oklch(var(--shadow-ink) / 0.09) inset,
+    0 0 20px oklch(var(--shadow-highlight) / 0.18) inset;
+  --glass-crystal-shadow: var(--glass-shadow), 0 1px 1px oklch(var(--shadow-highlight) / 0.4) inset;
+  --glass-crystal-shadow-hover: var(--glass-shadow-lg), 0 1px 1px oklch(var(--shadow-highlight) / 0.45) inset;
+  /* Base colors - Light mode with dark text */
+  --background: transparent;
+  --foreground: oklch(
+    0.2 0.035 var(--glass-fg-h)
+  ); /* CSS baseline (tinted, ~body target) so first paint has no gray→tint flash; AutoForeground refines to the exact APCA solve after */
+  /* Size-tiered foregrounds (ARC Bronze Simple Mode bands) — static fallback; AutoForeground re-bands
+     these against the live glass surface at runtime. text-foreground-soft / -strong utilities. */
+  --foreground-soft: oklch(
+    0.45 0.077 var(--glass-fg-h)
+  ); /* large/heading — baseline matched to AutoForeground's median pick; chroma is the LOWEST any preset hue solves to, so no hue clips before JS refines */
+  --foreground-strong: oklch(
+    0.2 0.034 var(--glass-fg-h)
+  ); /* fine/small — the ramp's tonal clip put this at L20, not L12; the old value flashed dark-then-tinted on every load */
+  --foreground-ui: oklch(0.42 0.071 var(--glass-fg-h)); /* icons — AutoForeground re-bands (+ optional hue) */
+  /* Static baselines for the OPAQUE + CRYSTAL tier sets (the [data-material] remaps read these) —
+     WITHOUT them, a no-JS consumer (or SSR first paint) would substitute an unset var and INHERIT the
+     page foreground onto those floors. Light mode: the opaque floor (L90) and crystal surface share
+     the page's direction, so the normal literals apply; AutoForeground refines when mounted. */
+  --foreground-opaque: oklch(0.22 0.04 var(--glass-fg-h));
+  --foreground-soft-opaque: oklch(0.4 0.04 var(--glass-fg-h));
+  --foreground-strong-opaque: oklch(0.12 0.04 var(--glass-fg-h));
+  --foreground-ui-opaque: oklch(0.46 0.05 var(--glass-fg-h));
+  --muted-foreground-opaque: oklch(0.14 0.04 var(--glass-fg-h));
+  --foreground-crystal: oklch(0.22 0.04 var(--glass-fg-h));
+  --foreground-soft-crystal: oklch(0.4 0.04 var(--glass-fg-h));
+  --foreground-strong-crystal: oklch(0.12 0.04 var(--glass-fg-h));
+  --foreground-ui-crystal: oklch(0.46 0.05 var(--glass-fg-h));
+  --muted-foreground-crystal: oklch(0.14 0.04 var(--glass-fg-h));
+  /* Chakra tier baselines — text sits on the TABLE (the flat centre, L 88), not on the facets, so in
+     light mode the direction matches the page and the normal literals apply. AutoForeground re-bands
+     against the composited table when mounted. */
+  --foreground-chakra: oklch(0.22 0.04 var(--glass-fg-h));
+  --foreground-soft-chakra: oklch(0.4 0.04 var(--glass-fg-h));
+  --foreground-strong-chakra: oklch(0.12 0.04 var(--glass-fg-h));
+  --foreground-ui-chakra: oklch(0.46 0.05 var(--glass-fg-h));
+  --muted-foreground-chakra: oklch(0.14 0.04 var(--glass-fg-h));
+  --card: transparent;
+  --card-foreground: var(--foreground);
+  --popover: transparent;
+  --popover-foreground: var(--foreground);
+
+  /* Primary colors - Light mode */
+  --primary-l: 0.42; /* primary ink lightness (dark pill on light pages) — the color itself is composed in the engine, following the theme hue */
+  /* Ceiling on the primary ink's chroma. The ×1.2 in the engine is intent — primary should read MORE
+     saturated than the base tint — but uncapped it asked past the sRGB edge for five presets in light
+     (turquoise, aquamarine, success, warning, aurora) and two in dark (lapis, info), where the browser
+     gamut-maps and the delivered colour stops tracking the authored one.
+     Measured against --glass-fg-h, not --glass-tint-h: --primary follows the FOREGROUND hue, and the
+     Muse/Sistine frescoes decouple the two (fg 290 / 18), so those hues are in the sweep — aurora only
+     shows up as out-of-gamut once you check the fg hue. */
+  --primary-c-max: 0.069; /* ≤ 0.0697, the L-42 ceiling floor — h205 (aurora) is now tighter than h190 */
+  --primary-foreground: oklch(0.98 0 0); /* White text on the primary ink — Lc 88.1 at the worst hue, turquoise (measured) */
+
+  /* Secondary colors - Light mode */
+  /* ── Flat-neutral shadcn SURFACES, now theme-tinted ──────────────────────────
+     --accent, --secondary, --muted and --sidebar were the last chroma-0 tokens in the theme, which is
+     why a toggle's on-state read as near-white in light and near-black in dark no matter which preset
+     was active: the fill simply had no hue to give. Same treatment as --border — lightness stays put
+     (pure recolor), the colour moves to engine.css so it re-resolves per tint scope, and chroma is
+     min(the preset's own, a cap) so a preset that declares less keeps its restraint and selenite stays
+     exactly neutral.
+     Each cap is measured against the tightest sRGB ceiling across all 17 presets AT THAT LIGHTNESS, and
+     they differ by a factor of eight because the ceiling collapses toward white: 0.0714 at L 85, but
+     only 0.0091 at L 98. One shared cap would have to be the smallest, tinting nothing. */
+  --secondary-l: 0.96;
+  --secondary-c-max: 0.018; /* ≤ 0.0182, the L-96 ceiling floor (lapis h268) */
+  --secondary-foreground: var(--foreground);
+
+  /* Muted colors - Light mode */
+  --muted-l: 0.85;
+  --muted-c-max: 0.071; /* ≤ 0.0714, the L-85 ceiling floor (lapis h268) */
+  --muted-foreground: oklch(
+    0.35 0.06 var(--glass-fg-h)
+  ); /* Level 1 — L35, not L14: the widest gap of the set, and the one doing most of the first-paint flash */
+
+  /* Accent colors - Light mode. NOTE the knob prefix: --accent-c / --accent-h are already taken as the
+     user-facing overrides for --glass-accent (the vivid switch/slider fill), a different role. */
+  /* L93, down from 0.96, and the cap raised with it. The hover fill was reading as plain white: at L96 the
+     sRGB gamut allows a chroma of only 0.0182, an RGB spread of 19, so "tinted" was arithmetically
+     invisible. Chroma near the extremes is not a free parameter — it is whatever the gamut leaves — so the
+     only way to a visible tint is to step off the extreme. Three points of lightness buys 1.7x the spread
+     (19 -> 32) and moves the fill DARKER than the surface, the direction a highlight should go on a light
+     page. It cannot go much further: --accent is also painted at 50% (bg-accent/50 on calendar's "today",
+     button's active state, ToggleGroup hover), and that composite over an L88 card is what binds — at L92
+     it drops to 76.0 Lc, under the floor+margin, while L93 holds 76.9. */
+  --accent-bg-l: 0.93;
+  --accent-bg-c-max: 0.032; /* ≤ 0.0323, the L-93 ceiling floor (lapis h268) */
+  /* Stays --foreground: this token is text on a SURFACE-lightness background. Its callers all have that
+     shape — the ghost button's hover, toggles, and the highlighted row of every menu (dropdown, context,
+     navigation, command, menu-bar, select), which paint bg-accent so a consumer's --accent reaches them
+     (the shadcn contract). Text and fill only stay legible together while --accent sits near the
+     surface, which is precisely why the fill was moved by chroma rather than by weight. */
+  --accent-foreground: var(--foreground);
+
+  /* Destructive colors - WCAG AA compliant (4.5:1 contrast) */
+  --destructive: oklch(0.55 0.22 25); /* Red - 4.5:1 with white */
+  --destructive-foreground: oklch(0.98 0 0); /* White text on red */
+
+  /* Border / input LIGHTNESS + chroma-CAP knobs — the COLOR is composed in engine.css so the edge
+     follows the theme tint like every other surface token (leaves, so they inherit into tint scopes
+     where the engine re-resolves).
+     L 0.85, not the 0.88 the flat neutral carried: sRGB's chroma ceiling collapses as lightness climbs,
+     and at 0.88 the binding ceiling across all 17 presets is 0.0564 — the most colorful in-gamut edge
+     possible there still reads as grey (mean RGB spread 51). Dropping 3 points of L raises the ceiling
+     to 0.0714 and nearly doubles delivered colorfulness (mean spread 65) while moving the grey
+     reference only #d7d7d7 → #cecece, which is below the threshold of a perceived weight change.
+     --border-c-max is the CAP, not the value: chroma is min(tint chroma, cap), so a preset that
+     declares less than the cap keeps its own restraint — selenite (c 0) stays exactly neutral, which is
+     the whole point of that theme — while lapis (c 0.15) clamps instead of being gamut-mapped by the
+     browser. A flat multiplier cannot do both: any factor small enough to keep lapis in gamut drags the
+     0.07 jewels below where they are today. */
+  --border-l: 0.85;
+  --input-l: 0.85;
+  --border-c-max: 0.07; /* ≤ 0.0714, the L-0.85 ceiling floor (lapis h268) */
+  --ring: oklch(0.5 0.2 250); /* Focus ring */
+
+  /* Chart colors - WCAG AA compliant */
+  --chart-1: oklch(0.6 0.2 250); /* Blue */
+  --chart-2: oklch(0.55 0.15 150); /* Green */
+  --chart-3: oklch(0.5 0.2 50); /* Yellow */
+  --chart-4: oklch(0.65 0.2 300); /* Purple */
+  --chart-5: oklch(0.6 0.2 20); /* Orange */
+
+  /* Sidebar colors - Light mode */
+  --sidebar-l: 0.98;
+  --sidebar-c-max: 0.009; /* ≤ 0.0091, the L-98 ceiling floor — near white holds almost no hue */
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: oklch(0.5 0.2 250); /* Blue */
+  --sidebar-primary-foreground: oklch(0.98 0 0); /* White text on primary */
+  --sidebar-accent: oklch(0.15 0 0 / 0.1); /* Subtle glass overlay (≈ foreground/10), not a solid block */
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border); /* Same divider role, same value it already carried — follow the role token */
+  --sidebar-ring: oklch(0.5 0.2 250); /* Blue ring - 3:1 contrast */
+}
+
+.dark {
+  /* Base colors — light text on a dark ground */
+  --background: transparent;
+  /* Pressed/active shadow SCALE — dark overrides: primaries deepen +0.1, contact layers +0.05, so the
+     push-in still reads on dark surfaces (see :root for the light ladder + rationale). */
+  --press-shadow-sm: inset 0 1px 2px oklch(var(--shadow-ink) / 0.2);
+  --press-shadow: inset 0 2px 4px oklch(var(--shadow-ink) / 0.3);
+  --press-shadow-strong: inset 0 2px 4px oklch(var(--shadow-ink) / 0.3), inset 0 1px 2px oklch(var(--shadow-ink) / 0.2);
+  --press-shadow-deep: inset 0 2px 4px oklch(var(--shadow-ink) / 0.35), inset 0 1px 2px oklch(var(--shadow-ink) / 0.25);
+  --active-shadow:
+    0 2px 6px oklch(var(--shadow-ink) / 0.4), inset 0 1px 2px oklch(var(--shadow-highlight) / 0.15),
+    inset 0 0 8px oklch(var(--shadow-highlight) / 0.1);
+  /* Selected-control fill — dark twin. Deliberately UNCHANGED in behaviour from the `bg-white/20` it
+     replaces: chroma cap 0 makes min() resolve to 0, so this is a pure white lift and the hue arrives
+     by show-through from the surface below, which is exactly why dark already read correctly. Light
+     has to source its hue directly (see :root); the two modes reach the same result by different
+     routes because the near-white gamut only permits one of them. */
+  --active-l: 100%;
+  --active-c-max: 0;
+  --active-a: 0.2;
+  /* ── Mode knobs — dark twins (see :root for what each dial does). */
+  --glass-sheet-a: 0.05;
+  --glass-sheet-a1: 0.03;
+  --glass-frost-boost: 0.06;
+  --glass-border-a: 0.15;
+  --glass-wash-l: 58%;
+  --glass-accent-l: 0.68;
+  --glass-accent-c: 0.14;
+  --glass-glow-lc: 0.7 0.18;
+  --glass-glow-a: 0.5;
+  --harmonic-l: 0.68;
+  --mono-l-1: 0.82;
+  --mono-l-2: 0.68;
+  --mono-l-3: 0.5;
+  --gradient-l: 0.68;
+  --gradient-c: 0.14;
+  --gradient-contrast-l: 0.9;
+  --gradient-contrast-c: 0.09;
+  --glass-crystal-l: 96; /* shared with light: the ceiling that forces 96 is hue-driven, not mode-driven */
+  --glass-crystal-bg-a: 0.1;
+  /* Gloss ink lightness — dark twin. Over an L-28 floor there is 72 L of headroom, so 66 lifts +15.2
+     and still holds 59% of the tonal ink's chroma: a specular that is genuinely tinted. Light cannot
+     have both (see :root). */
+  --glass-gloss-l: 66;
+  /* Gloss chroma cap — the L-66 twin. Far more headroom this far from white: 0.1094 is aurora (h205),
+     the tightest across all 23 preset scopes — the FRESCOES count here too, which is why this is not
+     turquoise's 0.1106. Dark gloss keeps real colour; it was still clipping before (turquoise
+     0,193,186 and carnelian 255,0,0 both had a pinned channel). */
+  --glass-gloss-c-max: 0.109;
+  /* L lifted from 22% (less extreme light↔dark switch); the opaque chroma scale (0.9) keeps warm hues
+     like amber in-gamut instead of hard-clipping to rust. */
+  --glass-solid-l: 18%;
+  /* The retired sheet's compensation, dark twin (see :root). Much the larger move of the two modes: a
+     near-white sheet over a DARK floor lifts it ~12 codes where over the light floor it lifts ~2–5. Same
+     two-knob fit, worst OKLab dE 0.0045 across the 14 presets.
+     33.4 since opaque carries the tint wash (materials.css). The wash lifts the card, and unlike sheer
+     glass no dark page shows through it, so at the backing's own 36.4 an opaque card sat 3–5 L above its
+     glass siblings, and on the light-wash presets (aventurine, peridot, turquoise) only pure white text
+     still reached the body floor. Three points down puts it within ~2 L of the glass beside it and keeps
+     tinted text above the 76.5 margin everywhere (tightest: moonstone 76.6). The light floor makes the
+     mirror-image move (L93 over a L92 backing) for the mirror-image reason. */
+  --glass-opaque-l: 33.4;
+  /* 0.98. Was 1.05 (up from 0.85): the dark floor was never cap-limited — every preset sat at 31–79% of
+     its own ceiling, so the MULTIPLIER was the throttle and dark opaque cards lost their tint. It is
+     still the most the tightest hue (turquoise, ×0.984) can take without clipping, now at the floor's
+     L33.4, where the ceilings are lower than at L36.4. The wash carries most of the colour on top of it.
+     The sheer backing shares this scale (engine.css), so dark glass gives up 7% of its backing chroma
+     with it, under a wash that dominates it. */
+  --glass-opaque-c-scale: 0.98;
+  --glass-opaque-cap-scale: 1;
+  /* Opaque floor chroma cap, dark twin (see :root). A GUARD, not a throttle — the distinction matters
+     and this value used to get it wrong. It was 0.06, the tightest ceiling across the preset scopes,
+     which was correct while every jewel shared --glass-tint-c: 0.07 and the floor multiplied it blind.
+     Once each preset tuned its own chroma to its own hue, that shared floor-of-the-tightest started
+     costing the hues WITH headroom: at 0.06 amethyst lost 30% of its ask, tourmaline 33%, rose 26% —
+     against own ceilings of 0.189, 0.152 and 0.142. Measured, every preset's dark ask now sits at
+     0.31–0.79× of its own ceiling, so nothing clips with no cap at all. 0.095 clears the largest ask
+     (tourmaline 0.0901) and therefore throttles nobody, while still bounding a future preset that
+     pushes chroma far past today's values. check-gamut scores each preset against its own ceiling. */
+  /* Guard, not a throttle: the largest dark ask is tourmaline at 0.111, so this binds nobody. Declared
+     in its own rule right after this block (see there for why). */
+  /* The dark backing under sheer glass, at the lightness the opaque floor had before opaque gained the
+     wash: dark glass is unchanged by that move. It is its own value now, as light's L92 is, so the tint
+     switcher's Lightness slider (which writes --glass-opaque-l) moves the opaque card in both modes and
+     the sheer backing in neither. The cap stays the opaque one: dark already clears the body floor on
+     every preset with margin, and a lighter or greyer backing would wash the whole mode out. */
+  --glass-solidify-l: 36.4;
+  --glass-solidify-c-max: var(--glass-opaque-c-max);
+  /* ── Chakra dark twins (see :root for what each dial does + how the alphas were solved).
+     The facet alphas invert in character: over an L28 body there is 72 L of headroom UP and only 28
+     DOWN, so the highlights need far less alpha and the inks far more than their light-mode twins to
+     land the same 18 L span. The targets also skew brighter here (+10/−8 rather than +6/−12) — a dark
+     gem reads as cut by catching light, where a light one reads by casting shade. */
+  --glass-chakra-l: 28;
+  --glass-chakra-a: 0.58;
+  --glass-chakra-c-max: 0.046; /* ≤ 0.0471, the L-28 ceiling floor (turquoise h190) */
+  --glass-chakra-facet-t-a: 0.139; /* top    — highlight, +10.0 L */
+  --glass-chakra-facet-l-a: 0.056; /* left   — highlight,  +4.0 L */
+  --glass-chakra-facet-r-a: 0.143; /* right  — ink,        −4.0 L */
+  --glass-chakra-facet-b-a: 0.286; /* bottom — ink,        −8.0 L */
+  /* ── Glass shadows — dark twins (deeper drops, brighter bevels). */
+  --glass-shadow:
+    0 4px 16px oklch(var(--shadow-ink) / 0.3), 0 1px 4px oklch(var(--shadow-ink) / 0.15), 0 0 0 0.5px oklch(var(--shadow-highlight) / 0.12) inset,
+    0 0 12px oklch(var(--shadow-highlight) / 0.15) inset;
+  --glass-shadow-lg:
+    0 8px 32px oklch(var(--shadow-ink) / 0.4), 0 2px 8px oklch(var(--shadow-ink) / 0.2), 0 0 0 0.5px oklch(var(--shadow-highlight) / 0.15) inset,
+    0 0 20px oklch(var(--shadow-highlight) / 0.18) inset;
+  --glass-shadow-sm:
+    0 2px 8px oklch(var(--shadow-ink) / 0.25), 0 1px 2px oklch(var(--shadow-ink) / 0.12), 0 0 0 0.5px oklch(var(--shadow-highlight) / 0.1) inset,
+    0 0 8px oklch(var(--shadow-highlight) / 0.12) inset;
+  --glass-frosted-border: oklch(100% 0 0 / 0.25);
+  --glass-frosted-shadow:
+    0 8px 32px oklch(var(--shadow-ink) / 0.5), 0 2px 8px oklch(var(--shadow-ink) / 0.3), 0 0 0 0.5px oklch(var(--shadow-highlight) / 0.2) inset,
+    0 0 20px oklch(var(--shadow-highlight) / 0.22) inset;
+  --glass-crystal-shadow: var(--glass-shadow), 0 1px 1px oklch(var(--shadow-highlight) / 0.2) inset;
+  --glass-crystal-shadow-hover: var(--glass-shadow-lg), 0 1px 1px oklch(var(--shadow-highlight) / 0.25) inset;
+  --foreground: oklch(
+    0.95 0.03 var(--glass-fg-h)
+  ); /* CSS baseline (tinted, ~body target) so first paint has no gray→tint flash; AutoForeground refines to the exact APCA solve after */
+  /* Size-tiered foregrounds (ARC Bronze Simple Mode bands) — static fallback; AutoForeground re-bands
+     these against the live glass surface at runtime. text-foreground-soft / -strong utilities. */
+  --foreground-soft: oklch(0.83 0.065 var(--glass-fg-h)); /* large/heading — refined at runtime */
+  --foreground-strong: oklch(0.97 0.015 var(--glass-fg-h)); /* fine/small — refined at runtime */
+  --foreground-ui: oklch(0.87 0.057 var(--glass-fg-h)); /* icons — AutoForeground re-bands (+ optional hue) */
+  /* Static OPAQUE + CRYSTAL tier baselines, dark twins — the standard dark opaque floor (L32) and
+     crystal surface keep the page's light-text direction. Presets whose dark floors flip LIGHT (moonstone
+     cream) override the -opaque set in their own block; AutoForeground refines when mounted. */
+  --foreground-opaque: oklch(0.92 0.04 var(--glass-fg-h));
+  --foreground-soft-opaque: oklch(0.78 0.04 var(--glass-fg-h));
+  --foreground-strong-opaque: oklch(0.96 0.035 var(--glass-fg-h));
+  --foreground-ui-opaque: oklch(0.75 0.05 var(--glass-fg-h));
+  --muted-foreground-opaque: oklch(0.89 0.04 var(--glass-fg-h));
+  --foreground-crystal: oklch(0.92 0.04 var(--glass-fg-h));
+  --foreground-soft-crystal: oklch(0.78 0.04 var(--glass-fg-h));
+  --foreground-strong-crystal: oklch(0.96 0.035 var(--glass-fg-h));
+  --foreground-ui-crystal: oklch(0.75 0.05 var(--glass-fg-h));
+  --muted-foreground-crystal: oklch(0.89 0.04 var(--glass-fg-h));
+  /* Chakra tier baselines, dark twins — the L-28 table keeps the page's light-text direction. */
+  --foreground-chakra: oklch(0.92 0.04 var(--glass-fg-h));
+  --foreground-soft-chakra: oklch(0.78 0.04 var(--glass-fg-h));
+  --foreground-strong-chakra: oklch(0.96 0.035 var(--glass-fg-h));
+  --foreground-ui-chakra: oklch(0.75 0.05 var(--glass-fg-h));
+  --muted-foreground-chakra: oklch(0.89 0.04 var(--glass-fg-h));
+  --card: transparent;
+  --card-foreground: var(--foreground);
+  --popover: transparent;
+  --popover-foreground: var(--foreground);
+
+  /* Primary colors — dark mode */
+  --primary-l: 0.78; /* primary ink lightness in dark mode (light pill) — color composed in the engine */
+  --primary-c-max: 0.107; /* ≤ 0.1077, the L-78 ceiling floor (h268 lapis) */
+  /* Near-black text on the primary ink — Lc 62.9 at the worst hue, sistine (measured). It was 60.9
+     before --primary-c-max: capping the chroma the browser used to gamut-map moved the worst case back
+     above the 62 this comment had been claiming. */
+  --primary-foreground: oklch(0.15 0 0);
+
+  /* Secondary colors — dark mode */
+  /* Flat-neutral surfaces — dark twins (see :root for why these are knobs now). Lightness unchanged;
+     the caps are the dark ceilings, which are tightest at the DARKEST step, not the lightest. */
+  --secondary-l: 0.25;
+  --secondary-c-max: 0.041; /* ≤ 0.0417, the L-25 ceiling floor — h205 (aurora) is now tighter than h190 */
+  --secondary-foreground: var(--foreground);
+
+  /* Muted colors — dark mode */
+  --muted-l: 0.18;
+  --muted-c-max: 0.03; /* ≤ 0.0307, the L-18 ceiling floor (turquoise h190) */
+  --muted-foreground: oklch(0.9 0.031 var(--glass-fg-h)); /* Level 1 — one ramp step toward the chosen color */
+
+  /* Accent colors — dark mode */
+  /* L34, up from 0.25 — the same fix as light, mirrored. At L25 the ceiling was 0.0417 (spread 29), so the
+     fill read as near-black; L34 allows 0.0565 (spread 42) and moves it BRIGHTER than the surface, which is
+     the direction a highlight goes on a dark page. Dark has more room than light here (its 50% composite
+     sits at 77.5 Lc rather than 76.0), because the fill and the L36.4 card floor are close together. */
+  --accent-bg-l: 0.34;
+  --accent-bg-c-max: 0.056; /* ≤ 0.0565, the L-34 ceiling floor (aurora h205) */
+  --accent-foreground: var(--foreground);
+
+  /* Destructive colors - WCAG AA compliant (4.5:1 contrast) */
+  --destructive: oklch(0.65 0.22 25); /* Light red - 4.5:1 with dark background */
+  --destructive-foreground: oklch(1 0 0); /* White text on red — APCA Lc ~67 (near-black was Lc 42) */
+
+  /* Border / input lightness + chroma-cap — dark twins (see :root; color composed in engine.css).
+     L is UNCHANGED here: in dark mode the edge sits at 0.30/0.25 on a dark page, so lowering it would
+     cost contrast rather than buy color. Only the cap moves, up to the tightest dark ceiling — 0.0422
+     at L 0.25 (turquoise h190), which --input hits first, so one cap serves both. */
+  --border-l: 0.3;
+  --input-l: 0.25;
+  --border-c-max: 0.041; /* ≤ 0.0422, the L-0.25 ceiling floor (turquoise h190) */
+  --ring: oklch(0.6 0.2 250); /* Focus ring */
+
+  /* Chart colors - WCAG AA compliant */
+  --chart-1: oklch(0.65 0.2 250); /* Light blue */
+  --chart-2: oklch(0.7 0.15 150); /* Light green */
+  --chart-3: oklch(0.75 0.2 50); /* Light yellow */
+  --chart-4: oklch(0.7 0.2 300); /* Light purple */
+  --chart-5: oklch(0.68 0.2 20); /* Light orange */
+
+  /* Sidebar colors — dark mode */
+  --sidebar-l: 0.18;
+  --sidebar-c-max: 0.03; /* ≤ 0.0307, the L-18 ceiling floor (turquoise h190) */
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: oklch(0.56 0.16 250); /* Match --primary; white text clears APCA */
+  --sidebar-primary-foreground: oklch(1 0 0); /* White on the sidebar's brand fill */
+  --sidebar-accent: oklch(1 0 0 / 0.1); /* Subtle glass overlay (≈ foreground/10), not a solid block */
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border); /* Same divider role, same value it already carried — follow the role token */
+  --sidebar-ring: oklch(0.6 0.2 250); /* Light blue ring - 3:1 contrast */
+}
+
+/* The dark opaque-floor chroma guard, in its own rule so it can OUTRANK the presets. Each jewel pins
+   --glass-opaque-c-max to its hue's sRGB ceiling at the LIGHT floor (L88, presets.css), in an unscoped
+   block. On <html> that block and `.dark` tie at (0,1,0) and presets.css loads later, so the light caps
+   used to win in dark too: amethyst's dark floor rendered C 0.065 against an ask of 0.106 and a ceiling
+   of 0.189, lapis 0.055 against 0.236, and every blue/purple/red jewel's dark opaque card came out a dull,
+   greyed version of its tint (23–53% of the chroma its hue can hold at L36.4). The light caps describe
+   the light floor only; at L36.4 every preset's ask sits well inside its own ceiling, so this guard is
+   the only cap dark needs. (0,2,0) beats a preset block; `.dark [data-glass-tint]` covers a scoped tint
+   inside a dark page, and a preset's own `.dark[data-glass-tint="x"]` block still wins by source order. */
+.dark,
+.dark[data-glass-tint],
+.dark [data-glass-tint] {
+  --glass-opaque-c-max: 0.12;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+  }
+  body {
+    /* Text uses the band-picked --foreground (set on <html> by AutoForeground on theme/tint change;
+       globals carries a static fallback so there's no flash). */
+    color: var(--foreground);
+    background-color: transparent;
+  }
+  /* Thin, glass-friendly scrollbars (replaces the chunky native bar) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklch, var(--foreground) 22%, transparent);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--foreground) 38%, transparent);
+  }
+}
+
+/* ── Below the floor ──────────────────────────────────────────────────────────
+   The supported floor is Safari 17.5 / Chrome 120 / Firefox 128 / Edge 120, declared as the browserslist
+   in SISTINE's package.json. It is set by what this theme actually uses, not by preference — the binding
+   constraints are text-wrap:balance (Safari 17.5), bare-`&` CSS nesting and unprefixed mask-composite
+   (Chrome 120), and @property (Firefox 128). Tailwind v4's own baseline sits just under it. That
+   browserslist does not ship with this file: a consuming app should declare its own, at or above the
+   floor, or its toolchain targets whatever its defaults are.
+
+   Every colour in this theme is oklch(), fed through custom properties. On an engine without oklch the
+   custom property still PARSES (custom props accept anything) and only fails when substituted — so
+   `background-color: var(--color-background)` resolves to an invalid value and computes to `unset`,
+   i.e. transparent, rather than to a fallback. Surfaces disappear; text usually survives on the UA
+   default. This is not a polyfill and does not try to reproduce the palette — it guarantees a legible
+   page instead of transparent panels on stacked backgrounds.
+
+   UNVERIFIED IN A REAL ENGINE: no browser in the test matrix lacks oklch, so this branch has only been
+   confirmed to compile, not to render. Treat it as a floor, not a tested path. */
+@supports not (color: oklch(0% 0 0)) {
+  :root {
+    color-scheme: light;
+    background-color: #f7f7fb;
+    color: #17161c;
+  }
+  body {
+    background-color: #f7f7fb;
+    color: #17161c;
+  }
+  .glass,
+  [data-surface],
+  [data-material] {
+    background-color: #ffffffe6;
+    border: 1px solid #17161c26;
+    backdrop-filter: none;
+  }
+}
+/* ── Glass engine ─────────────────────────────────────────────────────────────
+   THREE grouped blocks, split by what must re-resolve where (the var-composition-resolves-at-declaration
+   gotcha — see scripts/check-theme.mjs):
+
+   A. TINT ANCHORS (:root, [data-glass-tint], …) — the tint knobs plus everything mode-INVARIANT that
+      composes them, declared on :root AND every tint scope so a scoped data-glass-tint re-resolves the
+      whole subgraph. Deliberately NOT on `.dark`: re-declaring --glass-tint-h / --glass-fg-h at a bare
+      `.dark` wrapper would reset a page tint inherited from above.
+
+   B. MODE-DERIVED SURFACES (:root, .dark, [data-glass-tint], …) — every tint-composing token whose
+      light/dark difference is a handful of numbers. Each is declared ONCE, composing the mode knobs
+      (--glass-sheet-a, --glass-wash-l, … — see :root/.dark) which are LEAVES that inherit into tint
+      scopes. `.dark` IS in this selector so a dark wrapper inside a light page re-composes its surfaces
+      from the wrapper's own dark knobs (same-element cascade) — "toggle .dark anywhere" keeps working.
+
+   C. GLOSS (:root, .dark, [data-glass-tint], [data-gloss]) — the crystal gloss and the stacks that bake
+      it, which also have to recompose wherever a `data-gloss` flavor is set. See block C itself.
+
+   Foreground tokens stay on bare :root/.dark (AutoForeground owns them). Preset blocks below override
+   --glass-tint-h/c/a by source order. Shadow composites are mode-TWINNED on bare :root/.dark (their
+   light↔dark ratios are irregular — knobbing them would change values). */
+:root,
+[data-glass-tint] {
+  /* Deliberately restrained glassmorphism — enough to read as glass, never enough to fog what is behind it. */
+  /* Glass tint — recolor ALL glass by changing these; presets set them via [data-glass-tint].
+     -h = hue, -c = chroma (gradient), -a = wash alpha. The gradient alone is too sheer
+     (~6–12% opacity) to show a hue, so -a paints a solid colored floor (--glass-tint-wash)
+     that reads over any backdrop. Neutral keeps -a:0, so the default glass is unchanged. */
+  --glass-tint-h: 250;
+  --glass-tint-c: 0.018;
+  --glass-tint-a: 0;
+  /* The same chroma, capped for NEAR-WHITE surfaces. The sheet stops, the borders and the crystal
+     floor sit at L 95–100%, where sRGB's chroma ceiling collapses AND becomes strongly hue-dependent:
+     at L=97% it is ~0.071 for peridot (h128) but ~0.014 for lapis (h268). Feeding those the raw
+     --glass-tint-c means each preset lands on whatever fraction of its declared value its hue happens
+     to permit — lapis was delivering 9% of its 0.15 where peridot delivered 98% of its 0.07 — and the
+     shortfall is then resolved by the browser's gamut mapping rather than by us. That is the same
+     class of bug the 3% margin in lib/oklch-utils guards against on the computed path ("foregrounds
+     went grey in Safari while staying tinted in Chrome"); this is its CSS-side counterpart.
+     Capping the BASE (rather than lowering any preset) keeps chroma where it has headroom — a jewel's
+     depth lives at mid lightness, in --primary and --glass-tint-wash, which are untouched by this.
+     Guarded by scripts/check-gamut.mjs.
+     0.025 was still too generous, because the sheet MULTIPLIES this cap: its stops are
+     calc(--glass-tint-c-hi * 0.3…1.3), so the top stop asked 0.0325 against an L-95 ceiling of 0.0229
+     at the tightest hue — the cap itself clipped. 0.017 is that ceiling divided by the 1.3 multiplier,
+     so the sheet now lands inside the gamut at every preset hue instead of at whatever the browser
+     chops it to. Cap-then-multiply is the order that matters here; see check-gamut's SCALE/CAP/BOTH
+     shapes, which model each form separately for exactly this reason. */
+  --glass-tint-c-hi: min(var(--glass-tint-c), 0.017);
+  /* Foreground hue — drives every FOREGROUND-keyed token (body/heading text via AutoForeground,
+     --muted-foreground, --glass-accent, --glass-glow, --gradient*), kept SEPARATE from the surface
+     hue so tuning text never shifts the glass/fresco surface. Defaults to the tint hue (jewels: text
+     == surface); frescoes override it to anchor text off their multi-hue surface (Muse: surface
+     230, text 290). AutoForeground reads this, falling back to --glass-tint-h for older consumers. */
+  --glass-fg-h: var(--glass-tint-h);
+  /* ── Harmonic color system ────────────────────────────────────────────────────────────────────
+     Color-wheel relationships derived from the CONTENT hue (--glass-fg-h) — the same hue --glass-accent
+     and --gradient track — so they rotate with the theme/tint automatically (a generalization of the
+     --gradient's +63.53° offset). Hues are mode-invariant ANGLES; CSS Color 4 wraps them past 360°, so use
+     anywhere as oklch(L C var(--hue-*)); choosing your own L/C also keeps them in-gamut. The ready --color-*
+     tokens sit at the --glass-accent envelope (0.6/0.15; .dark lifts them). NOTE: a fixed-chroma harmonic can
+     land at the sRGB edge at some hues and get browser-gamut-mapped — prefer the hue tokens + a conservative
+     chroma when that matters. */
+  /* Harmonic anchor hue — the wheel origin the harmonies rotate from. Normally the content hue, but the two
+     "hue-less" themes (selenite + moonstone) anchor at 0° instead — each preset block in presets.css declares
+     it, so a CSS-only consumer gets the anchor too (the tint switcher also inlines it, for a custom tint
+     dragged to chroma 0) — and their accents come out a colorful red-based harmony, not a warp of a
+     near-grey hue. */
+  --harmony-h: var(--glass-fg-h);
+  --hue-base: var(--harmony-h);
+  --hue-complement: calc(var(--harmony-h) + 180);
+  --hue-analogous-1: calc(var(--harmony-h) - 30);
+  --hue-analogous-2: calc(var(--harmony-h) + 30);
+  --hue-split-1: calc(var(--harmony-h) + 150);
+  --hue-split-2: calc(var(--harmony-h) + 210);
+  --hue-triad-1: calc(var(--harmony-h) + 120);
+  --hue-triad-2: calc(var(--harmony-h) + 240);
+  --hue-tetrad-1: calc(var(--harmony-h) + 60); /* rectangle: base, +60, +180, +240 */
+  --hue-tetrad-2: calc(var(--harmony-h) + 180);
+  --hue-tetrad-3: calc(var(--harmony-h) + 240);
+  --hue-square-1: calc(var(--harmony-h) + 90); /* square: base, +90, +180, +270 */
+  --hue-square-2: calc(var(--harmony-h) + 180);
+  --hue-square-3: calc(var(--harmony-h) + 270);
+  /* Harmonic chroma — a fixed vivid accent chroma so the palette stays colorful in EVERY theme (selenite +
+     moonstone included; they get their color from the hue-0 anchor above, not from chroma). --mono-chroma is
+     quieter (0.6×) for the subtle mono ramp. */
+  --color-chroma: 0.15;
+  --mono-chroma: calc(var(--color-chroma) * 0.6);
+  /* (--color-* / --mono-* ready colors live in the mode-derived surfaces block below — their L is the
+     mode envelope; the hue angles above are the mode-invariant part.) */
+  /* (The solidify floor — the --glass-opacity "component opacity" dial — is composed INSIDE each sheer
+     glass utility, at the element. Composing it here would bake :root's --glass-opacity into the value
+     and silently ignore a per-element glass={{opacity}} — the var-composition gotcha again.) */
+  /* Blur values — moderate by design; per-variant sizes (mode-invariant). */
+  --blur: 2px;
+  --blur-sm: 1px;
+  --blur-lg: 8px;
+  --blur-xl: 12px;
+  --blur-frosted: 25px;
+  /* Chakra reads as a THICK stone, so it diffuses more than crystal's near-clear 2px even though its
+     body is more solid — the two axes are independent (how much light passes vs how scattered it is). */
+  --blur-chakra: 6px;
+  /* Crystal edge — identical in both modes, so it lives here with the anchors (the crystal floor +
+     shadows are mode-varying: --glass-crystal-bg in the surfaces block below, shadows on :root/.dark). */
+  --glass-crystal-border: oklch(100% calc(var(--glass-tint-c-hi) * 0.6) var(--glass-tint-h) / 0.3);
+  /* Crystal gloss KNOBS — leaves only. The gloss itself (ink, the three gradients) and every stack that
+     bakes it are composed in block C below, which also recomposes at each [data-gloss] scope.
+     --glass-gloss-l / --glass-gloss-tint live in tokens.css (66 / 4.25) — do NOT re-declare here:
+     engine.css imports AFTER tokens.css, so a duplicate at equal :root specificity silently wins and
+     pure-CSS consumers get a stale gloss. */
+  --glass-gloss-hue-span: 40; /* hue: degrees the iridescent sweep shifts up & down from the tint hue */
+  /* hue: chroma of the iridescent stops, at the flavor's own L 74. Was 0.16, chosen believing an
+     over-ceiling request is gamut-MAPPED down to the ceiling ("holds 81% of that chroma"). WebKit clips
+     per channel instead (see --glass-gloss-c-max in tokens.css), so 0.16 pinned a channel on the
+     tightest hues rather than delivering 81% of itself. 0.12 sits just under 0.1226 — aurora (h205) at
+     L 74, the tightest across all 23 preset scopes (frescoes included) — so every hue in the sweep now
+     renders what it asks for. */
+  --glass-gloss-c: 0.12;
+  --glass-gloss-hue-dir: 1; /* gloss direction (±1) — flips the TONAL streak diagonal (calc angle) + the HUE sweep order (span × dir); toggled in the crystal demo */
+  /* The fresco slot, reset at every tint scope. The four fresco presets (frescoes.css, later in source
+     order) point it at their multi-hue sheet; every other preset leaves it at `none`. Without the reset a
+     single-hue preset scoped inside a fresco page (<section data-glass-tint="lapis"> on a muse page)
+     inherited the page's sheet, and its crystal, chakra and opaque surfaces painted muse's sweep. */
+  --glass-crystal-fresco: none;
+  --blur-crystal: 2px;
+}
+
+/* B. MODE-DERIVED SURFACES — see the engine header above. Each tint-composing token is declared ONCE,
+   parameterized by the mode knobs on bare :root/.dark; `.dark` in this selector keeps dark wrappers
+   re-composing with their own knobs. */
+:root,
+.dark,
+[data-glass-tint] {
+  /* Solid colored floor under the sheer gradient (see --glass-tint-a) — mode via --glass-wash-l/-c-mult. */
+  --glass-tint-wash: oklch(var(--glass-wash-l) calc(var(--glass-tint-c) * var(--glass-wash-c-mult)) var(--glass-tint-h) / var(--glass-tint-a));
+  /* Solid accent that tracks the FOREGROUND hue at a fixed vivid chroma — used by active controls
+     (switch "on", slider range). The --accent-h/-c knob overrides apply in BOTH modes (the old dark
+     twin dropped them — that was a bug). */
+  --glass-accent: oklch(var(--glass-accent-l) var(--accent-c, var(--glass-accent-c)) var(--accent-h, var(--glass-fg-h)));
+  /* Stained-glass — grayscale collapses the backdrop to pure LUMINANCE (akin to alpha: only lighter/
+     darker survives), and the glass's OWN tint stack supplies the color — OKLCH-true to the theme, no
+     hue-rotate approximation. --glass-stain-amount (0..1) sets how completely the backdrop's color is
+     stripped; --glass-stain-invert (0..1, default 1) flips the surviving luminance so bright backdrop
+     patches stop fighting dark tinted glass (set 0 to disable). The glass-stained utility and the switcher's Stained toggle both reference THIS token. */
+  --glass-stain: grayscale(var(--glass-stain-amount, 1)) invert(var(--glass-stain-invert, 0));
+  /* Colored glow for the `glow` prop — follows the foreground hue; override to recolor the halo. */
+  --glass-glow: oklch(var(--glass-glow-lc) var(--glass-fg-h) / var(--glass-glow-a));
+  /* Selected-control FILL (active tab, pressed toggle) — the surface twin of --active-shadow. Composed
+     here, not on :root, because it reads the tint: a scoped data-glass-tint must re-resolve it, and it
+     is why the chip tracks whichever theme the subtree carries. Mode knobs in tokens.css carry the two
+     routes to the same look (light tints the fill, dark lets the surface show through a white lift). */
+  --active-bg: oklch(var(--active-l) min(var(--glass-tint-c), var(--active-c-max)) var(--glass-tint-h) / var(--active-a));
+  /* Solid PRIMARY ink (default Button, link text) — themed at the tint's OWN chroma (×1.2): selenite
+     stays grey, moonstone whispers warm, jewels read clearly tinted. Lightness is the --primary-l mode knob
+     (0.42 light / 0.78 dark). Chroma is min(tint × 1.2, --primary-c-max): the ×1.2 is intent — primary
+     should read more saturated than the base tint — but uncapped it asked past the sRGB edge at five
+     presets in light and two in dark, where the browser, not the theme, picked the delivered colour.
+     Measured after capping: --primary-foreground holds Lc 88.1 light / 62.9 dark at the worst hue. */
+  --primary: oklch(var(--primary-l) min(calc(var(--glass-tint-c) * 1.2), var(--primary-c-max)) var(--glass-fg-h));
+  /* Ready accent-tier colors (hue angles from the anchors block; L is the mode envelope --harmonic-l). */
+  --color-complement: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-complement));
+  --color-analogous-1: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-analogous-1));
+  --color-analogous-2: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-analogous-2));
+  --color-split-1: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-split-1));
+  --color-split-2: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-split-2));
+  --color-triad-1: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-triad-1));
+  --color-triad-2: oklch(var(--harmonic-l) var(--color-chroma) var(--hue-triad-2));
+  /* Monochromatic — the harmony anchor hue at stepped lightness (a subtle, low-chroma ramp). */
+  --mono-1: oklch(var(--mono-l-1) var(--mono-chroma) var(--harmony-h));
+  --mono-2: oklch(var(--mono-l-2) var(--mono-chroma) var(--harmony-h));
+  --mono-3: oklch(var(--mono-l-3) var(--mono-chroma) var(--harmony-h));
+  /* Opaque glass — a fully solid, faintly tinted floor (no see-through) for the "opaque" style.
+     --glass-opaque-l is the body-lightness knob (:root/.dark; the header L slider drives it; the floor
+     AND AutoForeground's --foreground-opaque banding both read it, so they can't drift). */
+  /* Chroma is CAPPED now (--glass-opaque-c-max, tokens.css). This floor sat at L 90.9 in light (it is
+     L88 now, for the same reason) — near-white territory where the sRGB ceiling collapses — yet it was
+     the one near-white surface
+     multiplying RAW --glass-tint-c (×1.26) with no cap, while the sheet had --glass-tint-c-hi, chakra
+     had --glass-chakra-c-max and the gloss had --glass-gloss-c-max. That made it the binding surface
+     for 7 of the 12 jewels: it clipped first, and every preset's chroma budget was set by it. Capping
+     it is what let the tints below be normalised to their hue's real capacity rather than to this
+     floor's. Multiply-THEN-cap, matching --glass-gloss-ink. */
+  /* The cap is scaled per mode (--glass-opaque-cap-scale): the per-preset caps are L88 ceilings, and the
+     light floor now sits at L93, where they would overshoot. Composed here, not on :root, so a scoped
+     preset's own cap is the one scaled. */
+  --glass-opaque-bg: oklch(
+    calc(var(--glass-opaque-l) * 1%)
+      min(calc(var(--glass-tint-c) * var(--glass-opaque-c-scale)), calc(var(--glass-opaque-c-max, 0.3) * var(--glass-opaque-cap-scale, 1)))
+      var(--glass-tint-h)
+  );
+  /* The same floor at the SOLIDIFY lightness/cap — the backing `glass` paints under every sheer
+     material (see --glass-solidify in utilities.css). Split from --glass-opaque-bg because an opaque
+     CARD and the backing under sheer glass are different surfaces with different jobs; tokens.css has
+     the reasoning. Same scale, so a preset's tint still drives it; only the lightness and cap differ. */
+  --glass-solidify-bg: oklch(
+    calc(var(--glass-solidify-l, var(--glass-opaque-l)) * 1%)
+      min(calc(var(--glass-tint-c) * var(--glass-opaque-c-scale)), var(--glass-solidify-c-max, var(--glass-opaque-c-max, 0.3))) var(--glass-tint-h)
+  );
+  /* Sheer glass sheet — hue/chroma from the tint vars, chroma scaled per stop so the highlights stay
+     glassy and the body carries the color. Stop alphas ride the mode base --glass-sheet-a (+ fixed
+     offsets; the top stop's offset is its own knob --glass-sheet-a1 — dark tapers it to 0.03);
+     frosted = the same sheet lifted by --glass-frost-boost. */
+  --glass-bg: linear-gradient(
+    135deg,
+    oklch(100% calc(var(--glass-tint-c-hi) * 0.3) var(--glass-tint-h) / calc(var(--glass-sheet-a) + var(--glass-sheet-a1))) 0%,
+    oklch(99% calc(var(--glass-tint-c-hi) * 0.5) var(--glass-tint-h) / calc(var(--glass-sheet-a) + 0.01)) 25%,
+    oklch(97% calc(var(--glass-tint-c-hi) * 1) var(--glass-tint-h) / calc(var(--glass-sheet-a) + 0.02)) 50%,
+    oklch(99% calc(var(--glass-tint-c-hi) * 0.5) var(--glass-tint-h) / var(--glass-sheet-a)) 75%,
+    oklch(95% calc(var(--glass-tint-c-hi) * 1.3) var(--glass-tint-h) / calc(var(--glass-sheet-a) + 0.01)) 100%
+  );
+  --glass-frosted-bg: linear-gradient(
+    135deg,
+    oklch(100% calc(var(--glass-tint-c-hi) * 0.3) var(--glass-tint-h) / calc(var(--glass-sheet-a) + var(--glass-frost-boost) + 0.04)) 0%,
+    oklch(99% calc(var(--glass-tint-c-hi) * 0.5) var(--glass-tint-h) / calc(var(--glass-sheet-a) + var(--glass-frost-boost) + 0.01)) 25%,
+    oklch(97% calc(var(--glass-tint-c-hi) * 1) var(--glass-tint-h) / calc(var(--glass-sheet-a) + var(--glass-frost-boost) + 0.02)) 50%,
+    oklch(99% calc(var(--glass-tint-c-hi) * 0.5) var(--glass-tint-h) / calc(var(--glass-sheet-a) + var(--glass-frost-boost))) 75%,
+    oklch(95% calc(var(--glass-tint-c-hi) * 1.3) var(--glass-tint-h) / calc(var(--glass-sheet-a) + var(--glass-frost-boost) + 0.01)) 100%
+  );
+  /* Very subtle white border — the lit edge of a cut sheet (alpha is the mode dial) */
+  --glass-border: oklch(100% calc(var(--glass-tint-c-hi) * 0.5) var(--glass-tint-h) / var(--glass-border-a));
+  /* Opaque CHROME edge — the shadcn --border/--input role tokens (dividers, ghost/input outlines, any
+     bare `border-border`). Previously flat neutral (oklch(0.88 0 0) / oklch(0.3 0 0)), which made them
+     the ONLY chrome in the theme that did not move with the tint: a ghost Button kept a grey edge under
+     lapis while its `outline` sibling (border-foreground/20) tracked the theme. Lightness moves only in
+     LIGHT mode (0.88 → --border-l 0.85) to buy chroma headroom; see the knob comment in tokens.css.
+     Chroma is min(tint chroma, --border-c-max) — a CAP, deliberately not --glass-tint-c-hi and not a
+     multiplier. --glass-tint-c-hi (0.025) is the NEAR-WHITE cap, sized for the L 95–100% sheet stops
+     and crystal floor; borrowing it here spent only 66% of the ceiling on amethyst and 17% on peridot,
+     which is why the edge still read grey. A flat multiplier fails the other way: lapis declares
+     c 0.15, so any factor small enough to keep it in gamut pushes the 0.07 jewels below where they
+     started. min() gives every preset its full declared chroma up to the ceiling floor and clamps only
+     the ones that overreach — and leaves c 0 at exactly 0, so selenite stays the neutral theme it is.
+     Declaring them HERE (rather than on :root) also puts them under scripts/check-gamut.mjs, which
+     scrapes engine.css for both the calc() and min() chroma shapes — the suite went 20 → 24 surface/mode
+     pairs when these landed, so a later retune of the caps is measured, not asserted.
+     SURFACE hue (--glass-tint-h), not --glass-fg-h: an edge belongs to the surface it bounds, matching
+     --glass-border / --glass-crystal-border. In a fresco that splits the two (Muse: surface 230,
+     text 290) the border follows the panel, not the type. */
+  --border: oklch(var(--border-l) min(var(--glass-tint-c), var(--border-c-max)) var(--glass-tint-h));
+  --input: oklch(var(--input-l) min(var(--glass-tint-c), var(--border-c-max)) var(--glass-tint-h));
+  /* The remaining shadcn SURFACE tokens — the last chroma-0 values in the theme. Same shape as --border
+     for the same reason: a toggle's on-state, a hover wash and a sidebar panel all take their fill from
+     these, so while they were flat neutrals those surfaces read near-white in light and near-black in
+     dark in every preset. Each carries its OWN cap because the sRGB ceiling is a function of lightness
+     and these sit from L 18 to L 98 — a shared cap would have to be the smallest of them (0.009, at the
+     near-white sidebar) and would tint nothing. See the knobs in tokens.css. */
+  --accent: oklch(var(--accent-bg-l) min(var(--glass-tint-c), var(--accent-bg-c-max)) var(--glass-tint-h));
+  /* The hover wash as an IMAGE layer (glass-hover-accent). Translucent so the material still reads
+     through it — a hover that paints a flat fill stops looking like glass. */
+  --glass-hover-wash: color-mix(in oklch, var(--accent) 70%, transparent);
+  --secondary: oklch(var(--secondary-l) min(var(--glass-tint-c), var(--secondary-c-max)) var(--glass-tint-h));
+  --muted: oklch(var(--muted-l) min(var(--glass-tint-c), var(--muted-c-max)) var(--glass-tint-h));
+  --sidebar: oklch(var(--sidebar-l) min(var(--glass-tint-c), var(--sidebar-c-max)) var(--glass-tint-h));
+  /* Theme-aware brand gradient — follows --glass-fg-h, from the hue 3 ramp-steps out
+     (8/side → step 360/17 ≈ 63.53°) to the base hue, at the mode envelope --gradient-l/-c + 0.5 alpha.
+     (Axis/direction variants are computed in JS from lib/oklch-utils.ts — see the /components demo.) */
+  --gradient: linear-gradient(
+    135deg,
+    oklch(var(--gradient-l) var(--gradient-c) calc(var(--glass-fg-h) + 63.53) / 0.5) 0%,
+    oklch(var(--gradient-l) var(--gradient-c) var(--glass-fg-h) / 0.5) 100%
+  );
+  /* Full-opacity twin of --gradient for gradient TEXT (background-clip: text) — no wash alpha so glyphs stay crisp. */
+  --gradient-text: linear-gradient(
+    135deg,
+    oklch(var(--gradient-l) var(--gradient-c) calc(var(--glass-fg-h) + 63.53)) 0%,
+    oklch(var(--gradient-l) var(--gradient-c) var(--glass-fg-h)) 100%
+  );
+  /* High-contrast gradient text for printing ON a tinted theme surface: DARK tint-hue gradient in light
+     mode, LIGHT one in .dark (--gradient-contrast-l/-c), so legibility comes from lightness. */
+  --gradient-text-contrast: linear-gradient(
+    135deg,
+    oklch(var(--gradient-contrast-l) var(--gradient-contrast-c) calc(var(--glass-fg-h) + 63.53)) 0%,
+    oklch(var(--gradient-contrast-l) var(--gradient-contrast-c) var(--glass-fg-h)) 100%
+  );
+  /* (The crystal floor, --glass-crystal-bg, is in block C: the hue gloss flavor repaints it.) */
+  /* ── Chakra — the step-cut gem surface ────────────────────────────────────────────────────────
+     BODY: the stone itself. The one tint-composing token here, so it is the only one with a gamut
+     budget — min() against --glass-chakra-c-max (not a multiplier) for the same reason --border uses
+     one: lapis declares c 0.15 and would be gamut-mapped, while any multiplier small enough to hold it
+     drags the 0.07 jewels below where they should sit. Caps are measured per mode against the tightest
+     ceiling across all 17 presets, so every preset delivers 100% of its declared chroma. */
+  --glass-chakra-bg: oklch(
+    calc(var(--glass-chakra-l) * 1%) min(var(--glass-tint-c), var(--glass-chakra-c-max)) var(--glass-tint-h) /
+    var(--glass-chakra-a)
+  );
+  /* (The chakra SURFACE STACK, --glass-chakra-stack-bg, is in block C: it bakes the gloss.) */
+  /* THE CUT — four sides, two steps, as INSET SHADOWS rather than inset background layers.
+     A background layer is always a RECTANGLE: background-size shrinks it but gives it no radius of its
+     own, so an inset gradient paints square corners over a rounded surface — a card with hard-cornered
+     rectangles stacked on it. box-shadow has no such problem; an inset shadow is the border box's own
+     rounded rect, offset, so every band follows --radius at whatever value the element carries, for
+     free and at any size.
+     Each side is a pair. The step-1 band (offset --glass-chakra-step) paints OVER the step-2 band
+     (offset twice that), so the visible result is two concentric bands per side: 0→N shows step 1
+     composited on step 2, N→2N shows step 2 alone. That is the step cut, and because step 2 is
+     literally the same colour at half alpha it cannot drift out of sync with step 1.
+     Order matters — box-shadow paints first-listed on top, so every step-1 band precedes its step-2
+     twin. Corners: adjacent bands overlap and composite rather than mitering to a hard 45° line, which
+     is the trade for following the radius. On a gem that reads as the corner facet catching both
+     neighbours, and it is what the existing --glass-shadow bevel already does at top and bottom. */
+  --glass-chakra-facets:
+    inset 0 var(--glass-chakra-step) 0 oklch(var(--shadow-highlight) / var(--glass-chakra-facet-t-a)),
+    inset var(--glass-chakra-step) 0 0 oklch(var(--shadow-highlight) / var(--glass-chakra-facet-l-a)),
+    inset calc(var(--glass-chakra-step) * -1) 0 0 oklch(var(--shadow-ink) / var(--glass-chakra-facet-r-a)),
+    inset 0 calc(var(--glass-chakra-step) * -1) 0 oklch(var(--shadow-ink) / var(--glass-chakra-facet-b-a)),
+    inset 0 calc(var(--glass-chakra-step) * 2) 0 oklch(var(--shadow-highlight) / calc(var(--glass-chakra-facet-t-a) * 0.5)),
+    inset calc(var(--glass-chakra-step) * 2) 0 0 oklch(var(--shadow-highlight) / calc(var(--glass-chakra-facet-l-a) * 0.5)),
+    inset calc(var(--glass-chakra-step) * -2) 0 0 oklch(var(--shadow-ink) / calc(var(--glass-chakra-facet-r-a) * 0.5)),
+    inset 0 calc(var(--glass-chakra-step) * -2) 0 oklch(var(--shadow-ink) / calc(var(--glass-chakra-facet-b-a) * 0.5));
+  /* Edge + depth: the standard drop plus the cut. --glass-shadow's own top/bottom bevel is left out —
+     the facet bands ARE the bevel, and doubling them would flatten the step read. */
+  --glass-chakra-border: oklch(100% calc(var(--glass-tint-c-hi) * 0.5) var(--glass-tint-h) / var(--glass-border-a));
+  --glass-chakra-shadow: var(--glass-shadow), var(--glass-chakra-facets);
+  --glass-chakra-shadow-hover: var(--glass-shadow-lg), var(--glass-chakra-facets);
+  /* Precomposed background STACKS — the background-image compositions, single-sourced. The surface
+     utilities consume them via --srf-* fallbacks (sheer utilities append the element-composed solidify
+     layer underneath), and the [data-glass] style remaps below swap them wholesale. Live here so they
+     re-resolve per tint scope and per mode wrapper. The crystal stack bakes the gloss into the
+     background (the site-wide re-skin can't use ::before/::after — those need position:relative, which
+     would break sticky/fixed surfaces). */
+  --glass-wash-layer: linear-gradient(var(--glass-tint-wash), var(--glass-tint-wash));
+  --glass-stack-bg: var(--glass-bg), var(--glass-wash-layer);
+  /* Frosted rides the wash in the IMAGE stack (sheet + wash), leaving the background-color channel
+     free for the veil floor. */
+  --frosted-stack-bg: var(--glass-frosted-bg), var(--glass-wash-layer);
+  /* (--crystal-stack-bg is in block C: it bakes the gloss.) */
+}
+
+/* C. GLOSS — the crystal highlight and everything that bakes it: the ink, the three gradients, the
+   crystal floor, and the crystal + chakra stacks. Declared on every scope that can CHANGE it: :root and
+   .dark (the mode knobs), [data-glass-tint] (the tint), and [data-gloss] (the flavor). The last is what
+   lets `data-gloss` work below <html>: these tokens are composed values, which bake where they are
+   declared, so a [data-gloss] section that only re-pinned an input (as the flavor blocks used to) had
+   its children inherit <html>'s gradients and stacks pre-composed, and painted the page's gloss.
+   THREE FLAVORS, chosen by two plain switches the [data-gloss] blocks in materials.css set to `1` or
+   `initial` (unset = tonal):
+     white → flat white specular (the classic glass shine)        --glass-gloss-is-white: 1
+     tonal → a tonally-close single-hue tint of the theme (--glass-gloss-l / --glass-gloss-tint)
+     hue   → iridescent: the highlight sweeps hues shifted ± --glass-gloss-hue-span around the tint
+             hue, and repaints the crystal floor in the sweep      --glass-gloss-is-hue: 1
+   A switch selects nothing by itself: each flavor's variant (block C′ below) multiplies an alpha by it,
+   so with the switch `initial` the variant is invalid at computed-value time and the var() fallback here,
+   the tonal shape, applies. The switches are leaves, so they inherit, and a nested [data-gloss] sets both
+   to pick its own flavor; a nested [data-glass-tint] recomposes from the inherited switches and keeps the
+   page's flavor (it used to reset it to tonal). Each layer applies its own alpha. */
+:root,
+.dark,
+[data-glass-tint],
+[data-gloss] {
+  /* The tonal ink as its own token (not inline in the fallback below) so check-gamut's scraper, which
+     reads `--x: <L> <chroma> <h>` declarations, still sweeps it. */
+  --glass-gloss-ink-tonal: calc(var(--glass-gloss-l, 94) * 1%)
+    min(calc(var(--glass-tint-c) * var(--glass-gloss-tint, 2)), var(--glass-gloss-c-max, 0.3)) var(--glass-tint-h);
+  --glass-gloss-ink: var(--glass-gloss-ink-white, var(--glass-gloss-ink-tonal));
+  --glass-gloss-top: var(--glass-gloss-top-hue, linear-gradient(to bottom, oklch(var(--glass-gloss-ink, 100% 0 0) / 0.4), transparent 30%));
+  --glass-gloss-streak: var(
+    --glass-gloss-streak-hue,
+    linear-gradient(calc(135deg * var(--glass-gloss-hue-dir, 1)), oklch(var(--glass-gloss-ink, 100% 0 0) / 0.15), transparent 50%)
+  );
+  --glass-gloss-glow: var(
+    --glass-gloss-glow-hue,
+    radial-gradient(circle at 50% 120%, oklch(var(--glass-gloss-ink, 100% 0 0) / 0.2), transparent 70%)
+  );
+  /* Crystal floor — clear glass; the alpha is the mode dial (--glass-crystal-bg-a).
+     Crystal body. The lightness is a KNOB, not 100%, and that is the whole point: at L100 sRGB holds
+     ZERO chroma, so this surface asked for 0.015 and delivered exactly none — crystal rendered pure
+     white under every preset, in both modes (measured: #fffdff amethyst, #fffef4 moonstone,
+     #fbffff lapis; RGB spread 2–11). check-gamut even reported it as "no attainable chroma at all"
+     and skipped the pair rather than failing it.
+     --glass-crystal-l is 96 because that is the lowest lightness at which the TIGHTEST of the 21 hues
+     this theme uses (h268, lapis) can still carry the 0.015 this asks for: ceiling 0.0182, 1.22x
+     headroom. L96.5 is the exact crossover at 1.06x, too thin given maxChromaFor already sits 3% inside
+     the boundary to stop Safari clamping toward grey. The cost is small — at the 0.3 light-mode alpha
+     the composite moves ~1.2 L, and 0.4 L in dark. */
+  --glass-crystal-bg: var(
+    --glass-crystal-bg-hue,
+    oklch(calc(var(--glass-crystal-l) * 1%) calc(var(--glass-tint-c-hi) * 0.6) var(--glass-tint-h) / var(--glass-crystal-bg-a))
+  );
+  /* SURFACE STACKS: crystal and chakra bake the same gloss triple, so `data-gloss` white / tonal / hue
+     reskin both, over a fresco slot and the tint wash. Nothing in the chakra stack is inset, so nothing
+     has a corner of its own — the element's border-radius clips the whole stack (see the facet bands in
+     block B). Baked into the background, not ::before/::after: the crystal PAGE style re-skins every
+     surface, and pseudo layers would need position:relative, which breaks sticky/fixed surfaces. */
+  --crystal-stack-bg:
+    var(--glass-gloss-top), var(--glass-gloss-glow), var(--glass-gloss-streak), var(--glass-crystal-fresco, none), var(--glass-wash-layer);
+  --glass-chakra-stack-bg:
+    var(--glass-gloss-top), var(--glass-gloss-glow), var(--glass-gloss-streak), var(--glass-crystal-fresco, none), var(--glass-wash-layer);
+}
+
+/* C′. The FLAVOR VARIANTS block C falls back from, each valid only while its switch is `1`. Kept in a
+   sibling block (same scopes) so scripts/check-gamut.mjs can model the hue variants at the hue flavor's
+   own L74 (the [data-gloss="hue"] block pins --glass-gloss-l there) without misreading block C's tonal
+   ink at it.
+   hue: each highlight sweeps (tint hue − span) → tint hue → (+ span), interpolated IN OKLCH so the arc
+   passes through the base hue. Top leans to the low end, glow to the high end, streak spans both. The
+   floor is replaced by a hue-carrying one at the gloss lightness (so Light deepens it): the default
+   crystal floor sits near white, where chroma collapses, so the sweep would read over a white sheet. */
+:root,
+.dark,
+[data-glass-tint],
+[data-gloss] {
+  --glass-gloss-ink-white: calc(var(--glass-gloss-is-white) * 100%) 0 0;
+  --glass-gloss-top-hue: linear-gradient(
+    to bottom in oklch,
+    oklch(
+      calc(var(--glass-gloss-l, 94) * 1%) var(--glass-gloss-c, 0.12)
+        calc(var(--glass-tint-h) - var(--glass-gloss-hue-span, 40) * var(--glass-gloss-hue-dir, 1)) /
+      calc(0.4 * var(--glass-gloss-is-hue))
+    ),
+    transparent 35%
+  );
+  --glass-gloss-streak-hue: linear-gradient(
+    115deg in oklch,
+    oklch(
+        calc(var(--glass-gloss-l, 94) * 1%) var(--glass-gloss-c, 0.12)
+          calc(var(--glass-tint-h) - var(--glass-gloss-hue-span, 40) * var(--glass-gloss-hue-dir, 1)) /
+        calc(0.32 * var(--glass-gloss-is-hue))
+      )
+      0%,
+    oklch(calc(var(--glass-gloss-l, 94) * 1%) var(--glass-gloss-c, 0.12) var(--glass-tint-h) / calc(0.12 * var(--glass-gloss-is-hue))) 45%,
+    oklch(
+        calc(var(--glass-gloss-l, 94) * 1%) var(--glass-gloss-c, 0.12)
+          calc(var(--glass-tint-h) + var(--glass-gloss-hue-span, 40) * var(--glass-gloss-hue-dir, 1)) /
+        calc(0.32 * var(--glass-gloss-is-hue))
+      )
+      85%,
+    transparent
+  );
+  --glass-gloss-glow-hue: radial-gradient(
+    circle at 50% 120%,
+    oklch(
+      calc(var(--glass-gloss-l, 94) * 1%) var(--glass-gloss-c, 0.12)
+        calc(var(--glass-tint-h) + var(--glass-gloss-hue-span, 40) * var(--glass-gloss-hue-dir, 1)) /
+      calc(0.25 * var(--glass-gloss-is-hue))
+    ),
+    transparent 70%
+  );
+  --glass-crystal-bg-hue: oklch(
+    calc(var(--glass-gloss-l, 94) * 1%) calc(var(--glass-tint-c) * 1.2) var(--glass-tint-h) /
+    calc(0.4 * var(--glass-gloss-is-hue))
+  );
+}
+/* ── Glass surface utilities (@utility — tree-shaken per consumer usage) ──────
+   The material system: ONE structural `glass` utility + orthogonal axis classes (border, veil, sm/lg,
+   gradient, glow, sheen). Materials live in materials.css as [data-material] token sets; page styles
+   in styles.css remap the same --srf-* tokens. No recipe utilities, no !important. */
+
+/* The glow itself — a punchy two-layer colored halo, centralized so its strength is tunable in ONE
+   place. `glass-glow` is the resting glow; `glass-glow-lg` (used on hover) intensifies it. Both set
+   --glow-layer, which every glass box-shadow folds in, so the glow shows under EVERY glass style.
+   Full mechanism + tuning + troubleshooting: docs/glow.md */
+@utility glass-glow {
+  --glow-layer: 0 0 8px 1px var(--glass-glow), 0 0 18px 3px var(--glass-glow);
+}
+@utility glass-glow-lg {
+  --glow-layer: 0 0 12px 2px var(--glass-glow), 0 0 28px 5px var(--glass-glow);
+}
+
+/* ── THE MATERIAL SYSTEM (Sistine 2.0) ────────────────────────────────────────
+   ONE structural utility (`glass`) + orthogonal axis classes. The material (a token set) comes from
+   [data-material] (materials.css) or the inherited [data-glass] page remap (styles.css); with
+   neither, the --srf-* fallbacks render the default glass material. Axis utilities only SET custom
+   props (or properties `glass` never touches), so Tailwind's emission order can never flip a result.
+   (The legacy recipe utilities below coexist during the migration and die with it.) */
+
+/* Structural glass — background/filter/shadow plumbing only; borderless (add glass-border).
+   Channels, outermost first:
+     background-image  = [--srf-hover state slot] + [--acc-gradient accent slot] + [--srf-bg-image material stack] + [solidify]
+     background-color  = --veil-floor (element veil) > --srf-bg-color (material floor) > transparent
+     backdrop-filter   = --srf-filter (material) > blur(--srf-blur > --blur) saturate(180%)
+     box-shadow        = --srf-shadow (material) > --srf-elev (size axis) > --glass-shadow, + glow
+   The leading gradient slot is a no-op layer so `glass-gradient` composes over ANY material (same
+   pattern as the fresco slot inside --crystal-stack-bg). Both no-op slots resolve to `none` rather
+   than linear-gradient(transparent, transparent): `none` is a valid <bg-image>, holds the layer
+   position identically, and paints nothing — where a transparent GRADIENT still goes through the
+   gradient rasteriser (and its dither) to deliver zero pixels.
+   The solidify floor (--glass-opacity dial) is composed HERE, at the element — never in a token
+   context (the var-composition-resolves-at-declaration gotcha; see scripts/check-theme.mjs). The
+   --srf-solidify slot lets a material DROP that layer when it is provably a no-op (the opaque material,
+   and the opaque PAGE style, which sets it on its own scope so it reaches `@apply glass` surfaces that
+   carry no `.glass` class); materials that want the normal floor pin the slot back to `initial`
+   (guaranteed-invalid → the var() fallback composes --glass-solidify at the element). --veil-solidify
+   leads the chain: glass-veil sets it (non-inheriting), because a VEILED surface paints the neutral
+   veil floor in its background-colour channel, so the layer is real there whatever the slot says. */
+@utility glass {
+  /* Fallback 0.7, not 0: every glass surface now sits on a 70% solidify floor unless a consumer dials
+     it back. Measured before changing it, because AutoForeground does NOT read --glass-opacity — it
+     bands text against the sheer floor, so a more solid surface than it modelled could have cost
+     contrast. Body text goes 91.5 -> 86.5 Lc in light and 88.0 -> 85.8 in dark, both far above the
+     75 body floor (it still clears at a full 1.0). Set --glass-opacity: 0 for the old sheer default. */
+  /* --glass-solidify-BG, not --glass-opaque-bg: the backing under sheer glass is its own surface now
+     (engine.css / tokens.css). In dark the two resolve identically, so this is a light-mode change. */
+  --glass-solidify-fill: color-mix(in oklch, var(--glass-solidify-bg, var(--glass-opaque-bg)) calc(var(--glass-opacity, 0.7) * 100%), transparent);
+  --glass-solidify: linear-gradient(var(--glass-solidify-fill), var(--glass-solidify-fill));
+  /* --srf-hover leads the stack because a hover/selection wash has to sit ON the material, not under it.
+     `hover:bg-accent` sets background-COLOR, which is the bottom of the box — beneath all 14 image layers
+     the glass stack paints, of which the solidify floor alone is 70% opaque. At most ~30% of the accent
+     survived to the eye, so the hover read as the material's own colour (white in light mode) no matter
+     what --accent was set to. No amount of tuning the token could fix that; it is a layer-order problem.
+     Same no-op `none` slot pattern as --acc-gradient below it. */
+  background-image:
+    var(--srf-hover, none), var(--acc-gradient, none), var(--srf-bg-image, var(--glass-stack-bg)),
+    var(--veil-solidify, var(--srf-solidify, var(--glass-solidify)));
+  background-color: var(--veil-floor, var(--srf-bg-color, transparent));
+  /* Author ONLY the standard backdrop-filter (no -webkit- twin: Lightning dedupes the pair keeping
+     the PREFIXED one, which Chromium never aliased — the [no-webkit-twin] invariant guards this).
+     The max() composes the diffuse FLOOR for adaptive surfaces. */
+  backdrop-filter: var(--srf-filter, blur(max(var(--srf-blur, var(--blur)), var(--dif, 0px))) saturate(180%)) var(--srf-stain,);
+  box-shadow: var(--srf-shadow, var(--srf-elev, var(--glass-shadow))), var(--glow-layer, 0 0 0 0 transparent);
+  /* THE EDGE, resolved once per surface for everything that draws one (glass-border, the opaque page's
+     uniform edge, the page outline). Precedence, strongest first: the element's own ink colour or
+     rim/frame weight, then the PAGE OUTLINE (--glass-outline / --glass-outline-w, set on any ancestor;
+     --glass-opaque-outline[-w] are the old opaque-only names, still read), then the material's own edge
+     (--srf-border-color / --srf-border-w), then the plain glass hairline. Element-composed, so an outline
+     set on a subtree resolves where it is read. */
+  --srf-edge: var(--brd-ink, var(--glass-outline, var(--glass-opaque-outline, var(--srf-border-color, var(--glass-border)))));
+  --srf-edge-w: var(--brd-w, var(--glass-outline-w, var(--glass-opaque-outline-w, var(--srf-border-w, 1px))));
+}
+
+/* Border axis — the material picks the color unless the element asks for ink (--brd-ink, the
+   borderColor axis below); width resolves material pin (--srf-border-w, which itself reads the --brd-w
+   weight slot) → weight slot directly (adaptive surfaces) → 1px hairline. */
+@utility glass-border {
+  border: var(--srf-edge-w, 1px) solid var(--srf-edge, var(--glass-border));
+}
+/* Border WEIGHTS — token setters for the --brd-w slot (order-safe; same-element composition, like
+   glass-sm's --srf-blur). Hairline is the unmarked default (1px; 0.5px under frosted); rim = 2px,   frame = 4px. */
+@utility glass-border-rim {
+  --brd-w: 2px;
+}
+@utility glass-border-frame {
+  --brd-w: 4px;
+}
+/* Border COLOUR — ink. The material edge is a near-white rim at the material's alpha: it reads as cut
+   glass on a dark page and as nothing at all on most light themes, at hairline, rim or frame weight
+   alike, so a weight axis whose colour disappears went unused. Ink is the element's own text colour
+   (--foreground, after any per-material text remap on this element), mixed toward transparent by
+   --glass-border-ink-a: a visible line anywhere text is legible. Element-composed and registered
+   non-inheriting (registrations.css), so a child border keeps its own material colour. */
+@utility glass-border-ink {
+  --brd-ink: color-mix(in oklch, var(--foreground) calc(var(--glass-border-ink-a, 0.5) * 100%), transparent);
+}
+
+/* Diffuse axis — a READABILITY BLUR FLOOR (not a blur value): every translucent material computes
+   blur(max(<its own blur>, --dif)), so crystal stays crystal until a text-dense surface opts in.
+   Token-setter (order-safe); OPAQUE never reads the slot (--srf-filter: none), so the short-circuit
+   is inherited — no GPU spend on solid floors. Tune the floor via --glass-diffuse. */
+@utility glass-diffuse {
+  --dif: var(--glass-diffuse, 12px);
+}
+
+/* Veil axis — the legibility floor for read-through overlays (menus, tooltips, toasts).
+   Composed AT THE ELEMENT so a scoped --glass-solid-a resolves here (check-theme invariant 2b).
+   The veil rides the background-COLOR channel, under the material's image stack, and — being
+   element-declared — beats any inherited --srf-bg-color remap. */
+/* Stained axis — REAL stained-glass optics: grayscale collapses the backdrop to pure luminance
+   (lighter/darker only, akin to alpha), so the glass's OWN tint supplies every drop of color and
+   whatever sits behind renders as tonal shades of the theme. One color-matrix op — free next to the
+   blur. --glass-stain-amount (0..1) dials how completely the backdrop's color is stripped. */
+@utility glass-stained {
+  --srf-stain: var(--glass-stain);
+}
+
+@utility glass-veil {
+  --veil-floor: oklch(var(--glass-solid-l) 0 0 / var(--glass-solid-a));
+  /* The veil keeps the solidify layer even where the material or page dropped it (--srf-solidify: none):
+     those drops are only no-ops over the opaque floor, and a veiled surface paints the veil instead. */
+  --veil-solidify: var(--glass-solidify);
+}
+
+/* THE PAGE BACKDROP LAYER — the fixed, full-viewport ground every sheer material blurs. Put this on the
+   `fixed inset-0 -z-10` container each background component renders.
+   It exists to force a compositing layer. `backdrop-filter` re-samples everything painted beneath it,
+   and this layer sits at z-index -10 under the entire document; unpromoted, the compositor has to
+   re-rasterise it against the scroll position every frame, which is where the scroll artifact on the
+   sheer materials comes from. `opaque` is the ONE material that sets --srf-filter: none — and the one
+   material that never showed the artifact, which is the correlation that points here.
+   Measured on the deployed page, this element resolved will-change:auto / transform:none /
+   contain:none — nothing was promoting it. Promoting is safe specifically because it has ZERO
+   position:fixed descendants and no background-attachment:fixed; a transform/will-change would
+   otherwise become their containing block and reparent them. Re-check that before adding children.
+   will-change (rather than a translateZ hack) because the hint is honest here: this layer is on screen
+   and being sampled for the whole session, so there is nothing to hint OFF later. */
+@utility glass-backdrop-layer {
+  will-change: transform;
+}
+
+/* Size axes — blur + elevation tiers. These feed the GLASS material only: frosted/crystal/opaque
+   (and page remaps) set --srf-filter/--srf-shadow wholesale, which flattens the tiers — matching
+   the old system, where the [data-glass] styles flattened glass-surface-sm/-lg. */
+@utility glass-sm {
+  --srf-blur: var(--blur-sm);
+  --srf-elev: var(--glass-shadow-sm);
+}
+@utility glass-lg {
+  --srf-blur: var(--blur-lg);
+  --srf-elev: var(--glass-shadow-lg);
+}
+@utility glass-xl {
+  --srf-blur: var(--blur-xl);
+  --srf-elev: var(--glass-shadow-lg);
+}
+
+/* ── Gradient ACCENT — a brand wash ON a material, not a material. Fills the no-op --acc-gradient
+   slot at the top of every `glass` background, so it composes over glass, frosted, crystal, and
+   opaque alike. A token-setter (no property `glass` sets), so it's immune to utility emission order. */
+@utility glass-gradient {
+  --acc-gradient: var(--gradient);
+}
+
+/* ── Hover/selection WASH — the interactive twin of glass-gradient. Fills the --srf-hover slot at the
+   very top of the background stack, which is the only place a state colour is actually visible on a
+   glass surface: `hover:bg-accent` writes background-COLOR, and every one of the material's image
+   layers paints over it (solidify alone is 70% opaque), so the accent arrived at ~30% strength blended
+   into the material and read as plain white on a light theme.
+   The wash is deliberately translucent rather than a flat fill — glass that turns solid on hover stops
+   looking like glass. 70% of --accent over the material keeps the wash, gloss and blur reading through
+   it while still shifting the surface unmistakably toward the theme colour.
+   Pair with `hover:bg-accent` rather than replacing it: the background-color still does the work on the
+   NON-glass variants (outline/default paint no material, so nothing covers it there). */
+@utility glass-hover-accent {
+  &:hover {
+    --srf-hover: linear-gradient(var(--glass-hover-wash), var(--glass-hover-wash));
+  }
+}
+
+/* Sheen — the OPT-IN hover shimmer (the gloss slides across on hover). Self-contained (highlight + diagonal
+   + glow + the 200%/hover shift), so it works on any glass surface AND, layered on glass-crystal (which
+   already has the static gloss), its ::before/::after override crystal's to add the motion. Pseudo-element
+   based → position:relative; avoid on sticky/fixed surfaces. */
+@utility glass-sheen {
+  position: relative;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  &::before {
+    background: var(--glass-gloss-top), var(--glass-gloss-streak);
+    background-size: 200% 200%;
+    background-position: 0% 0%;
+    opacity: 0.7;
+    transition: background-position 0.3s ease;
+  }
+
+  &::after {
+    background: var(--glass-gloss-glow);
+    opacity: 0.8;
+  }
+
+  &:hover::before {
+    background-position: 100% 100%;
+  }
+}
+
+/* Namespaced: a bare `shimmer` is a global name, and a consumer's own @keyframes shimmer (or another
+   library's) replaced this one for everyone, whichever stylesheet loaded last. Animates `translate`, not
+   `transform`: Tailwind v4's `-translate-x-full` (the skeleton's resting position) writes the `translate`
+   property, which COMPOSES with an animated transform rather than being replaced by it, so the sweep ran
+   from -200% to 0% and parked the highlight on top of the skeleton. Animating the same property replaces
+   the resting value while running, and with the animation off it falls back to that resting value. */
+@keyframes sistine-shimmer {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 100% 0;
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────────
+   CONTRIBUTING says "Respect prefers-reduced-motion"; the pattern scenes did and nothing else did.
+   This closes that, but NOT with the blunt global `*, ::before, ::after { animation: none !important }`
+   reset — that would also flatten the pattern scenes' own carefully scoped rules and every enter/exit
+   transition in the library.
+
+   The treatment differs by what the animation actually IS, because the preference is about MOTION, not
+   about animation in general:
+     - shimmer  → translation across a surface. Real motion, purely decorative: stopped. The skeleton
+                  still reads as a skeleton from its base fill.
+     - spin     → rotation. Real motion, but it is the ONLY signal that a loader is alive, so freezing
+                  it reads as "hung" rather than "calm". Slowed hard instead of stopped.
+     - pulse    → opacity only. Nothing moves, so there is nothing to trigger a vestibular response.
+                  Left alone deliberately; it also carries meaning (the input-otp caret is a blink).
+   Unlayered on purpose: Tailwind's generated utilities sit inside @layer utilities, and an unlayered
+   rule outranks any layered one regardless of order, so this needs neither !important nor a specificity
+   hack. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[sistine-shimmer_2s_infinite\],
+  .before\:animate-\[sistine-shimmer_2s_infinite\]::before {
+    animation: none;
+  }
+
+  .animate-spin {
+    animation-duration: 3s;
+  }
+}
+/* ── Materials — [data-material] token sets + gloss flavors ───────────────────
+   Four materials, one attribute. Each block declares the FULL --srf-* pin set ON the element, so an
+   explicit material always beats an inherited [data-glass] page remap (element-declared custom props
+   beat inherited ones). One material per element is structural: attributes can't stack, so there is
+   no !important anywhere in the system.
+   NOTE these are inherited custom properties — a data-material element also acts as a SCOPED default
+   for adaptive `glass` descendants (the mechanism DialogContent's old data-glass hack hand-rolled).
+   Pin a child back with its own data-material.
+   Import order: after tokens.css — [data-gloss="hue"] re-pins --glass-gloss-l and the crystal shadows,
+   which tokens.css declares on :root/.dark at equal specificity, so source order decides on <html>. */
+
+[data-material="glass"] {
+  /* Solidify slot: `initial` = guaranteed-invalid, so `glass` falls back to composing --glass-solidify
+     AT THE ELEMENT (never inherited pre-composed — the var-composition gotcha). Pinned so an opaque
+     PAGE remap can never leak its dropped layer into an explicit material. */
+  --srf-solidify: initial;
+  --srf-bg-image: var(--glass-stack-bg);
+  --srf-bg-color: transparent;
+  /* Composed on the element, so the glass-sm/glass-lg axes still resolve here (same-element
+     setter/reader is safe — the composition gotcha only bites pre-composed inherited values). */
+  --srf-filter: blur(max(var(--srf-blur, var(--blur)), var(--dif, 0px))) saturate(180%);
+  --srf-border-color: var(--glass-border);
+  --srf-border-w: var(--brd-w, 1px);
+  --srf-shadow: var(--srf-elev, var(--glass-shadow));
+}
+
+/* Frosted — the tint wash rides the IMAGE stack (--frosted-stack-bg = sheet + wash), leaving the
+   background-color channel free for the veil floor. */
+[data-material="frosted"] {
+  /* Solidify slot: `initial` = guaranteed-invalid, so `glass` falls back to composing --glass-solidify
+     AT THE ELEMENT (never inherited pre-composed — the var-composition gotcha). Pinned so an opaque
+     PAGE remap can never leak its dropped layer into an explicit material. */
+  --srf-solidify: initial;
+  --srf-bg-image: var(--frosted-stack-bg);
+  --srf-bg-color: transparent;
+  --srf-filter: blur(max(var(--blur-frosted), var(--dif, 0px))) saturate(200%);
+  --srf-border-color: var(--glass-frosted-border);
+  --srf-border-w: var(--brd-w, 0.5px);
+  --srf-shadow: var(--glass-frosted-shadow);
+}
+
+/* Crystal — gloss BAKED into the background stack (sticky/fixed-safe; no pseudo-elements, no
+   position:relative). --crystal-stack-bg carries the --glass-crystal-fresco pass-through. The hover
+   sparkle is a plain token swap; box-shadow transitions on the real property. No saturate(),
+   matching the old variant. */
+[data-material="crystal"] {
+  /* Solidify slot: `initial` = guaranteed-invalid, so `glass` falls back to composing --glass-solidify
+     AT THE ELEMENT (never inherited pre-composed — the var-composition gotcha). Pinned so an opaque
+     PAGE remap can never leak its dropped layer into an explicit material. */
+  --srf-solidify: initial;
+  --srf-bg-image: var(--crystal-stack-bg);
+  --srf-bg-color: var(--glass-crystal-bg);
+  --srf-filter: blur(max(var(--blur-crystal), var(--dif, 0px)));
+  --srf-border-color: var(--glass-crystal-border);
+  --srf-border-w: var(--brd-w, 1px);
+  --srf-shadow: var(--glass-crystal-shadow);
+  transition: box-shadow 0.3s ease;
+}
+[data-material="crystal"]:hover {
+  --srf-shadow: var(--glass-crystal-shadow-hover);
+}
+/* Crystal text tiers — the baked gloss locally LIGHTENS the title zone (worst in dark mode), so text
+   inside crystal remaps to the -crystal set AutoForeground bands against the glossed crystal surface.
+   VEILED crystal is excluded: the veil floor is exactly what the normal tiers are banded for. */
+[data-material="crystal"]:not(.glass-veil, [data-surface="veil"]) {
+  --foreground: var(--foreground-crystal);
+  --foreground-soft: var(--foreground-soft-crystal);
+  --foreground-strong: var(--foreground-strong-crystal);
+  --foreground-ui: var(--foreground-ui-crystal);
+  --muted-foreground: var(--muted-foreground-crystal);
+}
+
+/* Chakra — the step-cut gem: a translucent tinted body with a two-step facet frame on all four edges,
+   sitting between crystal (near-clear) and opaque (solid). Like crystal it bakes everything into the
+   background stack and the shadow — no pseudo-elements, so it is safe on sticky/fixed surfaces, and it
+   carries the same gloss triple, so `data-gloss` white / tonal / hue reskin it too.
+   The cut lives entirely in --srf-shadow (see --glass-chakra-facets in engine.css). Nothing here is an
+   inset BACKGROUND layer, deliberately: background layers are rectangles with no radius of their own,
+   so an inset gradient stacks square corners on a rounded surface. Inset shadows follow --radius.
+   Because the stack is plain full-bleed layers, the sheer-glass axes work untouched — glass-diffuse
+   raises --dif into the blur below, and the --glass-opacity solidify floor composes under the stack
+   exactly as it does for crystal. */
+[data-material="chakra"] {
+  /* Solidify slot: `initial` = guaranteed-invalid, so `glass` falls back to composing --glass-solidify
+     AT THE ELEMENT (never inherited pre-composed — the var-composition gotcha). Pinned so an opaque
+     PAGE remap can never leak its dropped layer into an explicit material. */
+  --srf-solidify: initial;
+  --srf-bg-image: var(--glass-chakra-stack-bg);
+  --srf-bg-color: var(--glass-chakra-bg);
+  --srf-filter: blur(max(var(--blur-chakra), var(--dif, 0px)));
+  --srf-border-color: var(--glass-chakra-border);
+  --srf-border-w: var(--brd-w, 1px);
+  --srf-shadow: var(--glass-chakra-shadow);
+  transition: box-shadow 0.3s ease;
+}
+[data-material="chakra"]:hover {
+  --srf-shadow: var(--glass-chakra-shadow-hover);
+}
+/* Chakra text tiers — content sits on the body, whose lightness (--glass-chakra-l) is its own dial and
+   can sit well away from the page's. Same reasoning as opaque/crystal; veiled chakra is excluded
+   because the veil floor is exactly what the NORMAL tiers are banded for. */
+[data-material="chakra"]:not(.glass-veil, [data-surface="veil"]) {
+  --foreground: var(--foreground-chakra);
+  --foreground-soft: var(--foreground-soft-chakra);
+  --foreground-strong: var(--foreground-strong-chakra);
+  --foreground-ui: var(--foreground-ui-chakra);
+  --muted-foreground: var(--muted-foreground-chakra);
+}
+
+/* Opaque — solid tinted floor, nothing to blur through. --glass-opaque-outline stays settable on any
+   ancestor: it's composed HERE, on the element, so it resolves where it's read. The floor can be
+   LIGHT while the page is dark, so the foreground tiers remap to the -opaque set AutoForeground
+   bands against that floor (inherits into the card's content). */
+[data-material="opaque"] {
+  /* DROP the solidify layer: it is `--glass-opaque-bg` at --glass-opacity alpha painted directly over a
+     background-COLOR of the same --glass-opaque-bg at alpha 1 — i.e. C over C, which composites to C for
+     ANY alpha. Measured across tints and both modes it moves every channel by exactly 0. So the layer was
+     one full gradient rasterisation (and one dither pass) for provably zero pixels, on the one material
+     with no backdrop-filter behind it to mask that noise. Restored when the surface is VEILED (glass-veil
+     sets --veil-solidify, which `glass` reads first) — there the background-color is the neutral veil
+     floor, not --glass-opaque-bg, so the layer is real (dropping it there would shift up to 31/255 in
+     light and 42/255 in dark). */
+  --srf-solidify: none;
+  /* The WASH, and only the wash. Every other material's stack ends in --glass-wash-layer, the solid film
+     of the preset's colour that carries the tint over any backdrop; opaque used to drop it with the
+     sheet, so its floor had to carry the tint alone and the opaque card read as a darker, greyer cousin
+     of the glass beside it (in dark mode most of all: amethyst glass L44 C0.18, opaque L36 C0.11). With
+     the wash, opaque is the glass stack at full opacity: within 0.7 L of its glass siblings in light and
+     2–4 L above them in dark, where no darker page shows through. The wash is one flat colour (both
+     stops equal), so it rasterises without the dither the sheet's gradient caused (below).
+     NO sheet — --glass-bg is a 5-stop
+     gradient whose total range, composited over this floor, is 2–4 sRGB codes across an entire card in
+     light and 5–7 in dark: one code per ~100–200px, far too shallow to draw cleanly in 8-bit, so the
+     rasteriser dithers rather than bands. On every other material a real backdrop-filter supplies blurred
+     page content that masks that noise; opaque sets --srf-filter: none, so there is nothing behind it and
+     the dither is the only variation on the card — read as grain, worst over text.
+     The sheet's GRADIENT was therefore invisible, but its uniform LIFT was not (+1.7 L light, +4.8 L dark),
+     so it is folded into --glass-opaque-l rather than dropped: see tokens.css. AutoForeground reads that
+     same token, so the -opaque text tiers re-band against the new floor automatically. */
+  /* The fresco slot leads, as in the crystal and chakra stacks: unset (`none`) on a single-hue preset, the
+     fresco's own multi-hue gradient on muse / sistine / aurora / gloaming, which opaque used to lose
+     entirely and render as one flat anchor hue. Its stops have a real range, unlike the sheet's 2–7
+     codes, so it rasterises without the dither the sheet was dropped for. */
+  --srf-bg-image: var(--glass-crystal-fresco, none), var(--glass-wash-layer);
+  --srf-bg-color: var(--glass-opaque-bg);
+  --srf-filter: none;
+  /* The material's own edge. A page outline (--glass-outline / -w) overrides it in `glass`'s --srf-edge,
+     the same as for every other material. */
+  --srf-border-color: var(--glass-border);
+  --srf-border-w: var(--brd-w, 1px);
+  --srf-shadow: var(--glass-shadow);
+  /* Veiled overlays INSIDE an opaque element compute a fully solid floor — same guarantee the opaque
+     PAGE style makes (menus/toasts must stay legible on a solid ground). */
+  --glass-solid-a: 1;
+  --foreground: var(--foreground-opaque);
+  --foreground-soft: var(--foreground-soft-opaque);
+  --foreground-strong: var(--foreground-strong-opaque);
+  --foreground-ui: var(--foreground-ui-opaque);
+  --muted-foreground: var(--muted-foreground-opaque);
+}
+
+/* ── Gloss flavors ────────────────────────────────────────────────────────────
+   data-gloss on <html> or ANY element swaps the crystal (and chakra) gloss for that subtree. Default
+   (unset) = tonal. These blocks set LEAVES only — the two flavor switches, plus the hue flavor's own
+   lightness and shadows — and engine.css block C recomposes the gloss on every [data-gloss] element from
+   them. That split is what makes a scoped `<section data-gloss="white">` work: a composed value bakes
+   where it is declared, so a block here that declared one would hand its children <html>'s gloss.
+   Each block sets BOTH switches, so a nested flavor overrides an ancestor's instead of combining with it.
+   They compose with [data-material="crystal"] AND the [data-glass="crystal"] page style, in both modes.
+   Known edge: hue's pinned --glass-gloss-l and bevel-less crystal shadows are mode-twinned leaves that a
+   white/tonal section nested INSIDE a hue scope inherits (no mode-aware reset exists for them here). */
+[data-gloss="white"] {
+  --glass-gloss-is-white: 1; /* the ink becomes the flat white specular, 100% 0 0 */
+  --glass-gloss-is-hue: initial;
+}
+[data-gloss="tonal"] {
+  /* Explicit tonal (also the default) — both switches off, so it can override a white/hue ancestor. */
+  --glass-gloss-is-white: initial;
+  --glass-gloss-is-hue: initial;
+}
+[data-gloss="hue"] {
+  --glass-gloss-is-white: initial;
+  --glass-gloss-is-hue: 1;
+  /* Hue OWNS its lightness rather than sharing the tonal twin. The two flavors want opposite things
+     from the same number: tonal wants the brightest value the surface allows (97 in light) so it reads
+     as a specular, while hue needs chroma headroom — its stops ask --glass-gloss-c 0.16, and the sRGB
+     ceiling at L 97 is 0.0136, so the iridescent sweep would deliver 8% of its colour and wash out to
+     near-white exactly where it is supposed to be most vivid.
+     74 is mode-invariant on purpose: it holds 81% of that chroma, and it lands on the right side of
+     both surfaces anyway (+18.4 L over the dark floor, −9.0 over the light one — for an iridescent
+     sweep, being SEEN matters more than which direction it moves). The demo's flavor switcher already
+     seeded 74 at runtime for this reason; this makes a no-JS consumer get it too.
+     "Holds 81% of that chroma" assumed the browser gamut-MAPS an over-ceiling request down to the
+     ceiling. Measured in WebKit it CLIPS instead (see --glass-gloss-c-max in tokens.css), so 0.16 did
+     not deliver 81% of itself — it drove the tightest hues to a pinned channel. 0.12 sits just under
+     0.1240, the L-74 ceiling for turquoise (h190) and the tightest of the presets, so the sweep now
+     renders every hue it asks for. scripts/check-gamut.mjs reads this 74 to score the variants. */
+  --glass-gloss-l: 74;
+  /* Kill the white bevel: the crystal shadow carries a white inset highlight, which would sit on top of
+     the swept hue. (The white floor is replaced in engine.css block C′.) */
+  --glass-crystal-shadow: var(--glass-shadow);
+  --glass-crystal-shadow-hover: var(--glass-shadow-lg);
+}
+/* ── Site-wide style remaps + vendor cascade fixes ──────────────────────────── */
+
+/* Keep react-day-picker from painting over the glass background */
+@layer utilities {
+  .glass[class*="rdp"],
+  .glass .rdp,
+  .glass .rdp-month {
+    background-color: transparent !important;
+  }
+}
+
+/* ── Site-wide glass style: token remaps ─────────────────────────────────────
+   data-glass on <html> (frosted | crystal | opaque) re-skins every ADAPTIVE surface (`glass` with no
+   data-material) by remapping the --srf-* tokens it reads. An element-level [data-material] pins its
+   own tokens and beats these by cascade physics — reinforced by the :where() wrapper, which drops
+   every remap (incl. its cross-product legs) to specificity (0,0,0), so a co-located data-material on
+   a tint-scope element always wins. The cross-product legs keep the swapped stacks re-resolving inside
+   scoped tints, status toasts included (a bare [data-glass] rule would bake <html>'s tint into
+   descendants' surfaces). Veiled surfaces (glass-veil) keep their element-composed floor.
+   The ELEMENT-level rules further down (text tiers, the opaque edge) need to know which elements are
+   surfaces. `.glass` says so for the utility class; an element that wears the material through
+   `@apply glass` has no class, so it opts in with a `data-surface` attribute (`data-surface="veil"`
+   when it also applies glass-veil). Everything ABOVE is inherited tokens and needs no marker. */
+:where([data-glass="frosted"], [data-glass="frosted"] [data-glass-tint], [data-glass="frosted"][data-glass-tint]) {
+  --srf-bg-image: var(--frosted-stack-bg);
+  /* NO --srf-bg-color wash here: the wash already rides the IMAGE stack (--frosted-stack-bg), same
+     as the frosted material — a color-channel copy double-washed tinted presets and stole the veil
+     floor's channel. */
+  --srf-filter: blur(max(var(--blur-frosted), var(--dif, 0px))) saturate(200%);
+  --srf-border-color: var(--glass-frosted-border);
+  --srf-border-w: var(--brd-w, 0.5px);
+  --srf-shadow: var(--glass-frosted-shadow);
+}
+:where([data-glass="crystal"], [data-glass="crystal"] [data-glass-tint], [data-glass="crystal"][data-glass-tint]) {
+  /* Gloss rides inside --crystal-stack-bg (baked — sticky/fixed-safe). Shimmer stays the opt-in
+     glass-sheen. No saturate(), matching the material. */
+  --srf-bg-image: var(--crystal-stack-bg);
+  --srf-bg-color: var(--glass-crystal-bg);
+  --srf-filter: blur(max(var(--blur-crystal), var(--dif, 0px)));
+  --srf-border-color: var(--glass-crystal-border);
+  --srf-shadow: var(--glass-crystal-shadow);
+}
+/* Crystal page: ADAPTIVE glass (no explicit material, not veiled) gets the -crystal text tiers, same
+   as the material remap in materials.css — the baked gloss lightens title zones there too. */
+[data-glass="crystal"] :where(.glass, [data-surface]):not([data-material]):not(.glass-veil, [data-surface="veil"]) {
+  --foreground: var(--foreground-crystal);
+  --foreground-soft: var(--foreground-soft-crystal);
+  --foreground-strong: var(--foreground-strong-crystal);
+  --foreground-ui: var(--foreground-ui-crystal);
+  --muted-foreground: var(--muted-foreground-crystal);
+}
+/* Chakra page — every adaptive surface becomes a step-cut gem. The cut rides --srf-shadow, so it
+   follows each surface's own border-radius with nothing to keep in sync. */
+:where([data-glass="chakra"], [data-glass="chakra"] [data-glass-tint], [data-glass="chakra"][data-glass-tint]) {
+  --srf-bg-image: var(--glass-chakra-stack-bg);
+  --srf-bg-color: var(--glass-chakra-bg);
+  --srf-filter: blur(max(var(--blur-chakra), var(--dif, 0px)));
+  --srf-border-color: var(--glass-chakra-border);
+  --srf-shadow: var(--glass-chakra-shadow);
+}
+/* Chakra page: adaptive glass (no explicit material, not veiled) takes the -chakra text tiers, same
+   as the material remap in materials.css. */
+[data-glass="chakra"] :where(.glass, [data-surface]):not([data-material]):not(.glass-veil, [data-surface="veil"]) {
+  --foreground: var(--foreground-chakra);
+  --foreground-soft: var(--foreground-soft-chakra);
+  --foreground-strong: var(--foreground-strong-chakra);
+  --foreground-ui: var(--foreground-ui-chakra);
+  --muted-foreground: var(--muted-foreground-chakra);
+}
+/* Opaque — solid tinted panels for adaptive surfaces. --glass-solid-a: 1 makes any veiled overlay
+   (glass-veil) compute a FULLY solid floor here too, so menus/toasts stay legible on an opaque page. */
+:where([data-glass="opaque"], [data-glass="opaque"] [data-glass-tint], [data-glass="opaque"][data-glass-tint]) {
+  /* Floor + the tint wash, no sheet — same as [data-material="opaque"] in materials.css: the wash is what
+     makes opaque the glass stack at full opacity rather than a greyer cousin of it, and the sheet stays
+     out because with --srf-filter: none nothing masks the dither of its 2–7 code gradient. */
+  --srf-bg-image: var(--glass-crystal-fresco, none), var(--glass-wash-layer);
+  --srf-bg-color: var(--glass-opaque-bg);
+  --srf-filter: none;
+  --srf-shadow: var(--glass-shadow);
+  /* Same provable no-op as [data-material="opaque"]: --glass-opaque-bg sits in the background-COLOR
+     channel, so the solidify layer would paint that colour over itself. A TOKEN here (it used to be an
+     element rule keyed on `.glass`), so it reaches an `@apply glass` surface too, which kept the light
+     solidify backing at 70% over the opaque floor and read nearly white. An explicit material pins the
+     slot back (`initial`), and a veiled surface restores the layer with --veil-solidify. */
+  --srf-solidify: none;
+}
+/* --glass-solid-a CANNOT ride in the :where() block above. :where() is specificity ZERO by design (so a
+   page style never beats an explicit material), and every other declaration up there survives that
+   because nothing else declares them — they are material SLOTS with no competing value. This one is
+   different: tokens.css declares --glass-solid-a on :root, which is (0,1,0), so the :where() version
+   lost every time and the opaque page never actually got its solid floor. Measured: --glass-solid-a
+   resolved to 0.65 on <html> under [data-glass="opaque"], identical to every other page style.
+   The visible symptom is any VEILED surface on an opaque page staying translucent while the solid
+   panels around it go opaque — menus, toasts and popovers, which is exactly what the block above says
+   this is for. A bare attribute selector is (0,1,0), which ties :root and wins on source order because
+   globals.css imports styles.css after tokens.css. It is a plain literal, so it simply inherits into
+   the tint / toast scopes and needs none of their re-resolution. */
+[data-glass="opaque"] {
+  --glass-solid-a: 1;
+}
+/* Opaque page: element-level touches for ADAPTIVE surfaces only (a `.glass` or `[data-surface]` element
+   with no explicit material — an explicit frosted/crystal card keeps its translucency AND its normal
+   foreground). Declared ON the element because (a) the page outline is settable on any ancestor and
+   must resolve where it's read, and (b) the foreground remap must not leak into explicit materials.
+   The uniform EDGE applies to every adaptive panel, veiled or not — a veiled card under the opaque page
+   still reads as a solid panel and needs the same outline. */
+[data-glass="opaque"] :where(.glass, [data-surface]):not([data-material]) {
+  --srf-border-color: var(--glass-border);
+  --srf-border-w: var(--brd-w, 1px);
+  /* Paint the border HERE, not just the tokens: borderless roles (Card default) never render
+     glass-border, so without this only bordered roles showed the outline — "some cards get it,
+     some don't". Under the opaque page every solid panel takes the uniform edge; bordered elements
+     resolve the same vars, so nothing double-draws. */
+  border: var(--srf-edge-w, 1px) solid var(--srf-edge, var(--glass-border));
+}
+
+/* ── The page OUTLINE — every material ───────────────────────────────────────
+   data-glass-outline on <html> (or any ancestor) gives every glass surface below it an edge in the
+   theme accent: glass, frosted, crystal, chakra and opaque alike, bordered roles and borderless ones,
+   which is what the opaque page already does for its own panels. --glass-outline recolours it (on its
+   own, without the attribute, it recolours only the edges surfaces already draw) and --glass-outline-w
+   sets the weight (1 / 2 / 4px = hairline / rim / frame); an element's own border="rim" or "frame" and
+   borderColor="ink" still win. :is(), not :where(), so this ties the opaque page's edge rule on
+   specificity and wins by coming after it. */
+[data-glass-outline] :is(.glass, [data-surface]) {
+  border: var(--srf-edge-w, 1px) solid var(--brd-ink, var(--glass-outline, var(--glass-opaque-outline, var(--glass-accent))));
+}
+/* The FOREGROUND remap is :not(.glass-veil) — the same carve-out crystal and chakra make, and the same
+   one --veil-solidify makes for the solidify layer on this page style. A veiled card does not paint
+   --glass-opaque-bg: glass-veil moves the background-COLOR channel to the neutral --veil-floor, so its
+   text sits on the veil surface the BASE tokens are banded for, not on the opaque floor. Remapping it
+   here handed those cards ink solved for a surface they do not have — visible as a hue jump, since the
+   opaque floor is the one surface with nothing composited over it and so sits at the raw --glass-tint-h
+   while every sheer surface lands a few degrees off it (measured on the /colors panel: 22.0 vs 14.6).
+   Splitting the rule is what keeps the edge treatment while dropping the foreground one. */
+[data-glass="opaque"] :where(.glass, [data-surface]):not([data-material]):not(.glass-veil, [data-surface="veil"]) {
+  --foreground: var(--foreground-opaque);
+  --foreground-soft: var(--foreground-soft-opaque);
+  --foreground-strong: var(--foreground-strong-opaque);
+  --foreground-ui: var(--foreground-ui-opaque);
+  --muted-foreground: var(--muted-foreground-opaque);
+}
+
+/* ── Prebaked frost ───────────────────────────────────────────────────────────
+   A stand-in for backdrop-filter when many surfaces are on screen at once (a message list). Each
+   `.glass-prebaked` paints a viewport-sized copy of the page background, shifted by its own screen
+   position (--gx / --gy, written by useGlassBackdrop), and clips that copy to its box. A plain
+   `filter` on that copy blurs pixels the element already owns. backdrop-filter would re-sample
+   whatever is painted behind every bubble, every frame.
+
+   UNLAYERED on purpose, and it MUST stay that way:
+   - `@utility` rules live in `@layer utilities`. An unlayered [data-material] / [data-glass] rule
+     beats a layered custom property no matter the specificity, so `--srf-filter: none` inside an
+     @utility would lose and the live blur would stay on.
+   - `backdrop-filter: none` here replaces the property `glass` sets, including the --srf-stain
+     appendix. Stained optics are a backdrop-filter color matrix; they do not carry over.
+   - `position: relative` and `overflow: hidden` are part of the trick (the slice is 100vw × 100vh
+     and has to be clipped, and the bubble has to be the slice's containing block). Unlayered, they
+     beat `absolute` / `fixed` / `sticky` / `overflow-*` utilities on the same element. Keep this
+     class on in-flow bubbles. It does not belong on a sticky bar, a popover, or a scrolling panel.
+   - No `isolation: isolate`. A stacking context paints its own background FIRST and negative
+     z-index children AFTER it, so the slice would cover the glass fill and the tint would vanish.
+     Without one, z-index -1 sits behind this element's background and in front of the page
+     backdrop (z-index -10). A transform, filter, or opacity on the bubble itself re-traps the
+     slice above the fill — same failure — so don't put those on the bubble.
+   - `glass-sheen` paints its own ::before / ::after highlights. This slice owns ::before; the two
+     classes do not combine.
+
+   The app supplies the pixels:
+   - `--app-bg-blurred`: a pre-blurred image (`url(bg.webp) center / cover`) or the same CSS
+     background the page paints. GradientBackground and the solid "none" backdrop publish it.
+   - `--app-bg-filter`: `blur(12px) saturate(180%)` when that background is NOT already blurred.
+     Defaults to none, so a pre-blurred image is not blurred a second time.
+   Pattern scenes and the canvas are many layers, not one background, so they do not publish the
+   variable. A bubble with this class and no variable loses the live blur and shows only its fill.
+
+   The copy defaults to the viewport (100vw × 100vh, origin 0,0): the page backdrop. A local
+   wallpaper sets --gox / --goy / --gvw / --gvh to its own box — useGlassBackdrop writes those on
+   [data-glass-scene] — and the slice lines up with that element instead. That box has to be a
+   stacking context, or this z-index -1 copy paints behind the wallpaper it is supposed to sample. */
+.glass-prebaked {
+  --srf-filter: none;
+  backdrop-filter: none;
+  position: relative;
+  overflow: hidden;
+}
+.glass-prebaked::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: var(--gvw, 100vw);
+  height: var(--gvh, 100vh);
+  left: calc((var(--gx, 0px) - var(--gox, 0px)) * -1);
+  top: calc((var(--gy, 0px) - var(--goy, 0px)) * -1);
+  background: var(--app-bg-blurred);
+  background-repeat: no-repeat;
+  filter: var(--app-bg-filter, none);
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* ── Glass tint presets ─────────────────────────────────────────────────────
+   Set data-glass-tint on any element (commonly <html>) to recolor the glass in that subtree.
+   Most presets just move the tint hue/chroma; "sistine" is a bespoke multi-hue fresco (gilded
+   gold → terracotta flesh tones → azure sky), echoing the Sistine Chapel ceiling.
+   Wash + all tint-derived tokens re-resolve per-scope via the :root,[data-glass-tint] split above. */
+/* Selenite — the neutral stone: no chroma and no wash, so the glass is the plain clear sheet. The tint
+   values equal the engine default's hue with the colour switched off; the block exists so a CSS-only
+   consumer (no tint switcher) gets selenite's colour-wheel anchor, which a hue-less theme needs. */
+[data-glass-tint="selenite"] {
+  --glass-tint-h: 250;
+  --glass-tint-c: 0;
+  --glass-tint-a: 0;
+  --harmony-h: 0;
+}
+[data-glass-tint="sapphire"] {
+  --glass-tint-h: 255;
+  --glass-tint-c: 0.075;
+  --glass-tint-a: 0.19;
+  --glass-wash-l: 63%;
+  --glass-opaque-c-max: 0.056;
+}
+[data-glass-tint="aventurine"] {
+  --glass-tint-h: 158;
+  --glass-tint-c: 0.076;
+  --glass-tint-a: 0.54;
+  --glass-wash-l: 88%;
+  --glass-opaque-c-max: 0.195;
+}
+[data-glass-tint="amethyst"] {
+  --glass-tint-h: 300;
+  --glass-tint-c: 0.101;
+  --glass-tint-a: 0.15;
+  --glass-wash-l: 55%;
+  --glass-opaque-c-max: 0.065;
+}
+[data-glass-tint="rose"] {
+  --glass-tint-h: 8;
+  --glass-tint-c: 0.095;
+  --glass-tint-a: 0.17;
+  --glass-wash-l: 64%;
+  --glass-opaque-c-max: 0.062;
+}
+[data-glass-tint="amber"] {
+  --glass-tint-h: 75;
+  --glass-tint-c: 0.062;
+  --glass-tint-a: 0.38;
+  --glass-wash-l: 81%;
+  --glass-opaque-c-max: 0.096;
+}
+[data-glass-tint="carnelian"] {
+  --glass-tint-h: 38;
+  --glass-tint-c: 0.081;
+  --glass-tint-a: 0.19;
+  --glass-wash-l: 67%;
+  --glass-opaque-c-max: 0.062;
+}
+[data-glass-tint="peridot"] {
+  --glass-tint-h: 128;
+  --glass-tint-c: 0.083;
+  --glass-tint-a: 0.54;
+  --glass-wash-l: 92%;
+  --glass-opaque-c-max: 0.218;
+}
+[data-glass-tint="turquoise"] {
+  --glass-tint-h: 190;
+  --glass-tint-c: 0.057;
+  --glass-tint-a: 0.54;
+  --glass-wash-l: 90%;
+  --glass-opaque-c-max: 0.144;
+}
+[data-glass-tint="aquamarine"] {
+  --glass-tint-h: 215;
+  --glass-tint-c: 0.053;
+  --glass-tint-a: 0.5;
+  --glass-wash-l: 82%;
+  --glass-opaque-c-max: 0.091;
+}
+[data-glass-tint="tourmaline"] {
+  --glass-tint-h: 342;
+  --glass-tint-c: 0.106;
+  --glass-tint-a: 0.18;
+  --glass-wash-l: 67%;
+  --glass-opaque-c-max: 0.079;
+}
+[data-glass-tint="lapis"] {
+  /* Lapis lazuli IS the deep saturated ultramarine, and at plain jewel chroma it reads as just another
+     blue next to sapphire. It used to buy that depth by declaring c 0.15 — far past the sRGB ceiling —
+     and letting the browser clip. That DID deliver a deep blue, but by accident rather than by design:
+     clipping chops channels, which drops LIGHTNESS, and the saturation came from landing darker.
+     Measured, oklch(58% 0.375 268) renders L48.1 C0.2941 h271 — a colour nobody wrote down.
+     The wash lightness below asks for that colour on purpose instead. h268's chroma ceiling PEAKS at
+     L46 (0.2979) and collapses to 0.1293 by L74, so the shared 72/58 wash was sitting on the downslope;
+     at L46 the same depth is available inside the gamut. oklch(45% 0.291 268) renders L44.9 C0.2909
+     h267.9 — the same deep ultramarine, hue exact, nothing pinned.
+     So lapis is no longer an exception to anything: it is the clearest case of the rule the whole
+     palette now follows — put the wash where the hue can actually hold chroma, then ask for it. */
+  --glass-tint-h: 268;
+  --glass-tint-c: 0.085;
+  --glass-tint-a: 0.13;
+  --glass-wash-l: 46%;
+  --glass-opaque-c-max: 0.055;
+}
+[data-glass-tint="goldstone"] {
+  --glass-tint-h: 22;
+  --glass-tint-c: 0.094;
+  --glass-tint-a: 0.17;
+  --glass-wash-l: 63%;
+  --glass-opaque-c-max: 0.06;
+}
+/* ── Per-mode wash ALPHA ──────────────────────────────────────────────────────
+   Alpha slides the surface along a straight line from the material floor toward the wash colour, so
+   how much a preset can take is set by how far its wash sits from THAT MODE's floor (L36.4 dark /
+   L88 light). A wash near the floor barely moves the surface and tolerates a lot; a wash far from it
+   crosses the mid-tone band where no text polarity reaches the body floor, and tolerates little.
+   Because every wash now sits at its hue's chroma PEAK, dark-peaking hues (lapis L46, amethyst L55)
+   sit near the DARK floor and take high alpha there, while light-peaking hues (peridot L92, turquoise
+   L90) sit near the LIGHT floor and take high alpha there. The two columns are near mirrors.
+   Each value is HALF that mode's measured headroom, so every preset keeps body text >= 75 Lc in both
+   modes with room to spare. A single shared alpha cannot serve both ends: at 0.55 everywhere, five
+   presets lose dark-mode text and lapis/amethyst lose light-mode text.
+   The switcher no longer inlines --glass-tint-a for a named preset (see applyTint), so THESE are the
+   values that render — nothing shadows them.
+   Every night block carries two selectors: `.dark[data-glass-tint="x"]` for a preset on the same element
+   as `.dark` (normally <html>), and `.dark [data-glass-tint="x"]` for a preset scoped to an element INSIDE
+   a dark page (`<section data-glass-tint="lapis">`), which the compound form never matched, so a scoped
+   preset in dark mode used to render its DAY values. check-theme's [night-scope] keeps them paired. */
+.dark[data-glass-tint="rose"],
+.dark [data-glass-tint="rose"] {
+  --glass-tint-a: 0.49;
+}
+.dark[data-glass-tint="goldstone"],
+.dark [data-glass-tint="goldstone"] {
+  --glass-tint-a: 0.5;
+}
+.dark[data-glass-tint="carnelian"],
+.dark [data-glass-tint="carnelian"] {
+  --glass-tint-a: 0.45;
+}
+.dark[data-glass-tint="amber"],
+.dark [data-glass-tint="amber"] {
+  --glass-tint-a: 0.34;
+}
+.dark[data-glass-tint="peridot"],
+.dark [data-glass-tint="peridot"] {
+  --glass-tint-a: 0.28;
+}
+.dark[data-glass-tint="aventurine"],
+.dark [data-glass-tint="aventurine"] {
+  --glass-tint-a: 0.29;
+}
+.dark[data-glass-tint="turquoise"],
+.dark [data-glass-tint="turquoise"] {
+  --glass-tint-a: 0.28;
+}
+.dark[data-glass-tint="aquamarine"],
+.dark [data-glass-tint="aquamarine"] {
+  --glass-tint-a: 0.31;
+}
+.dark[data-glass-tint="sapphire"],
+.dark [data-glass-tint="sapphire"] {
+  --glass-tint-a: 0.48;
+}
+.dark[data-glass-tint="lapis"],
+.dark [data-glass-tint="lapis"] {
+  --glass-tint-a: 0.54;
+}
+.dark[data-glass-tint="amethyst"],
+.dark [data-glass-tint="amethyst"] {
+  --glass-tint-a: 0.54;
+}
+.dark[data-glass-tint="tourmaline"],
+.dark [data-glass-tint="tourmaline"] {
+  --glass-tint-a: 0.46;
+}
+[data-glass-tint="moonstone"] {
+  /* Moonstone — a warm, very-low-chroma off-white glass (reads as cream, not yellow). A normal translucent
+     tint: texture-preserving and light-text in both modes, just a desaturated warm hue. Anchors its harmony
+     wheel at 0° (like selenite) so accents come out a colorful set, not a warp of the near-neutral hue. */
+  --glass-tint-h: 75;
+  --glass-tint-c: 0.047;
+  --glass-tint-a: 0.18;
+  --harmony-h: 0;
+  /* Gloss chroma, moonstone's own. The global --glass-gloss-tint is 4.25 — sized for the JEWELS, where a
+     0.07–0.1 tint wants a vivid gem highlight. Moonstone declares 0.047 precisely so it "reads as cream,
+     not yellow" (above), and 4.25× asks for 0.1998.
+     --glass-gloss-c-max (tokens.css) is what stops that becoming a clipped primary, and in LIGHT it does
+     the whole job: 0.013 caps both 0.1998 and 0.047 to the same value, so this override changes nothing
+     there. It earns its place in DARK, where the cap is a roomy 0.11 — enough that the multiplier would
+     still put moonstone's highlight at 2.3× its declared chroma, i.e. amber on a stone that is supposed
+     to be pale. 1× holds the specular at the tint's own chroma and lets its LIGHTNESS do the work. */
+  --glass-gloss-tint: 1;
+  /* Moonstone daytime body lightness. Fitted for the retired opaque sheet (tokens.css) on moonstone's OWN
+     floor rather than the global pair: this cream is already near-white, where a near-white sheet moved it
+     far less than it moved the standard L90 floor. dE 0.0002 — indistinguishable from the old surface. */
+  --glass-opaque-l: 94.5;
+  /* NO pinned --glass-opaque-bg: the floor must stay DERIVED from --glass-opaque-l (engine), because the
+     lightness slider / stored per-mode L land as an INLINE --glass-opaque-l that shadows this block — a
+     literal pin would freeze the paint while AutoForeground keeps banding text against the token (light
+     text on cream). Was c-scale 1 — the value that made the derived color exactly the original cream when
+     the sheet still painted over it; 0.92 is that same cream now that the sheet is gone (it desaturated as
+     well as lightened, so both knobs carry part of it). */
+  --glass-opaque-c-scale: 0.92;
+}
+.dark[data-glass-tint="moonstone"],
+.dark [data-glass-tint="moonstone"] {
+  /* Moonstone night. The wash sits a few points above the standard 58% (warmth without glare; h75
+     carries more real luminance per OKLCH point than the cool tints, so pale-warm washes read brighter
+     than their numbers). AutoForeground reads BOTH wash knobs live (+ the [moonstone-sync] mirrored
+     fallback), so page text and per-card dark-cream text re-band automatically.
+
+     The FLOOR is what you actually see: at the default opacity every surface — cards, inputs, the nav
+     pill — paints --glass-opaque-bg, and the wash only tints what shows through. It used to derive
+     oklch(0.8 0.047 75), which is a sand/tobacco tan, so moonstone night read as brown rather than as
+     the pale silvery stone it is named for. Lightness alone does not fix that: h75 is warm, so every
+     lightness along it lands somewhere in the tan family. Cutting the CHROMA is what moves it off that
+     family. Light mode is untouched (it keeps c-scale 1 at L94, where the same hue reads as cream).
+
+     L52, down from a cream L84.9 — moonstone night is a DARK stone now, and that is forced rather than
+     preferred. This floor feeds two surfaces at once: opaque cards paint it directly, and it composites
+     at --glass-opacity over the dark veil to become the floor sheer glass sits on. Both have to clear
+     the body floor, and for h75 nothing in L55–L84 reaches it in EITHER text polarity — that band is the
+     mid-tone dead zone. A cream L84.9 put the opaque card just above it (Lc 77.1) but dragged the sheer
+     surface to L65, dead centre, where body text topped out at 65.4 Lc and the preset had to be pinned
+     as a known exception. Going lighter cannot fix it: the veil is 30% of the composite, which caps the
+     solidify floor at L75.6 no matter how light this value gets, so the sheer surface can never climb
+     out the top. Only the bottom exit is reachable. L52 is the PALEST value where both surfaces clear:
+     sheer body text lands 80.0 Lc (was 65.4) and the opaque card 82.9 (was 77.1), and it also restores
+     --foreground-strong, which could not reach its 90 target on the cream floor either. Still stone —
+     oklch(0.52 0.021 75) is #70675c, a warm grey — and still well clear of the jewels' L36.4. */
+  --glass-wash-l: 64%;
+  --glass-wash-c-mult: 2;
+  /* Fitted for the retired opaque sheet, like the daytime floor above and likewise not the global dark
+     pair: moonstone night is a LIGHT floor, so the near-white sheet barely moved it. dE 0.0002.
+     The backing under sheer glass stays at that L52; the opaque card sits three points lower (49) for the
+     same reason every dark opaque card does (tokens.css): it carries the wash now, with no page showing
+     through it. */
+  --glass-solidify-l: 52;
+  --glass-opaque-l: 49;
+  --glass-opaque-c-scale: 0.44;
+  /* Static -opaque tier baselines. These flipped polarity with the floor: on the old cream L84.9 they were
+     dark warm literals, and on an L52 stone they have to be light or SSR's first paint is dark-on-dark.
+     Values are what AutoForeground itself solves for this surface, so the mounted refine is a no-op. */
+  --foreground-opaque: oklch(1 0 75);
+  --foreground-soft-opaque: oklch(0.9 0.05 75);
+  --foreground-strong-opaque: oklch(1 0 75);
+  --foreground-ui-opaque: oklch(0.91 0.05 75);
+  --muted-foreground-opaque: oklch(0.97 0.02 75);
+  /* Chakra needs the SAME treatment opaque gets above, and did not have it: chakra was added after this
+     block was written, so it kept the global dark body (L28) and rendered oklch(0.28 0.046 75) = #36250c,
+     a dark brown — the one surface where moonstone still read as tobacco rather than stone. Matching
+     opaque's pair — now L51, chroma x0.45 → 0.021, landing on #6d6559, the same stone as the opaque
+     floor one point above it.
+     The hue stays 75 deliberately. Cutting CHROMA is what moves this off the tan family; lightness alone
+     does not, and a cool hue would contradict the warm cream light mode keeps at L94. */
+  --glass-chakra-l: 51;
+  --glass-chakra-c-max: 0.021;
+  /* Same reasoning as the -opaque baselines above, and flipped with them: an L51 body needs LIGHT text. */
+  --foreground-chakra: oklch(1 0 75);
+  --foreground-soft-chakra: oklch(0.9 0.05 75);
+  --foreground-strong-chakra: oklch(1 0 75);
+  --foreground-ui-chakra: oklch(0.91 0.05 75);
+  --muted-foreground-chakra: oklch(0.96 0.03 75);
+}
+
+/* Semantic surfaces (Alert info/success/warning/destructive; destructive Button/Badge; status toasts,
+   which the Toaster stamps from sonner's data-type — see TOAST_TINT in components/ui/sonner.tsx) render
+   data-glass-tint="<status>" — one block per status, joining the grouped engine re-resolution above so
+   --glass-bg / wash re-resolve at the alert/toast. */
+[data-glass-tint="info"] {
+  --glass-tint-h: 255;
+  --glass-tint-c: 0.075;
+  --glass-tint-a: 0.18;
+  --glass-wash-l: 63%;
+}
+[data-glass-tint="success"] {
+  --glass-tint-h: 150;
+  --glass-tint-c: 0.088;
+  --glass-tint-a: 0.18;
+  --glass-wash-l: 87%;
+}
+[data-glass-tint="warning"] {
+  --glass-tint-h: 85;
+  --glass-tint-c: 0.063;
+  --glass-tint-a: 0.18;
+  --glass-wash-l: 84%;
+}
+[data-glass-tint="destructive"] {
+  --glass-tint-h: 25;
+  --glass-tint-c: 0.094;
+  --glass-tint-a: 0.18;
+  --glass-wash-l: 63%;
+}
+/* FRESCOES (muse / sistine / aurora / gloaming): each block's --glass-tint-h/c/a MUST mirror its
+   GlassTintSwitcher preset (components/glass-tint-switcher.tsx). The switcher INLINES those onto <html>,
+   shadowing these blocks on any page with the switcher mounted — so these are the static-consumer fallback.
+   Keep them identical, or the demo and a static page render different surfaces. (--glass-bg gradients and
+   --glass-fg-h are CSS-only — no preset counterpart.) */
+
+/* Muse — the neon city: cyan → violet → magenta → pink → amber, ONE definition for both modes. Its old
+   day sweep (a pale blue → cyan → teal cityscape) lives on in Aurora, so Muse no longer needs a night
+   twin: no .dark block, and the light/dark toggle changes the page under the sheet, not the sheet.
+
+   Lightness is shared because the stops are already bright (L 78–85), so they read on either page.
+   Stop 2's chroma is 0.095 because h290 at L80 has an sRGB ceiling of 0.1052; the 0.17 it once shipped
+   with was browser-gamut-mapped (and rendered differently in Safari than in Chrome). 0.095 is 90% of
+   its own ceiling, the rule every stop follows.
+
+   One alpha has to hold on BOTH pages, and the dark opaque card is the bind: there the sheet's bright
+   stops lift an L33 floor toward the text, and at the old day alphas (0.28–0.32) light text needed pure
+   white, past the tonal clip, so the ink lost the theme's hue. The sheet sits at 3/4 of the way from
+   the old night alphas to the old day ones, and the wash makes the room: L66 at 0.10 (was L76 at 0.16)
+   lands a light surface where it was (≈ L90) and a dark one 3.5 L darker. Measured: body 86.6 Lc light,
+   92.4 dark; the dark opaque ink stays tinted.
+
+   No pinned --glass-opaque-bg: the opaque floor DERIVES from --glass-opaque-l like every jewel, so the
+   switcher's Lightness slider moves a Muse card and AutoForeground models the floor it actually paints
+   (the old pins were h288 violet at L91 / L34, against a model of h230 at L93 / L33.4). */
+[data-glass-tint="muse"] {
+  --glass-tint-h: 230;
+  --glass-fg-h: 290; /* text/accent anchor: violet, the sheet's second stop */
+  --glass-tint-c: 0.056;
+  --glass-tint-a: 0.1;
+  --glass-wash-l: 66%;
+  --glass-bg: linear-gradient(
+    135deg in oklch,
+    oklch(85% 0.1 222 / 0.3) 0%,
+    oklch(80% 0.095 290 / 0.28) 22%,
+    oklch(78% 0.2 326 / 0.26) 45%,
+    oklch(79% 0.12 350 / 0.26) 70%,
+    oklch(84% 0.12 74 / 0.28) 100%
+  );
+  --glass-frosted-bg: linear-gradient(
+    135deg in oklch,
+    oklch(85% 0.1 222 / 0.42) 0%,
+    oklch(80% 0.095 290 / 0.4) 22%,
+    oklch(78% 0.2 326 / 0.38) 45%,
+    oklch(79% 0.12 350 / 0.38) 70%,
+    oklch(84% 0.12 74 / 0.4) 100%
+  );
+  --glass-crystal-fresco: var(--glass-bg);
+}
+
+/* Sistine — the signature: a painterly fresco of four jewels (amber → rose → sapphire → aventurine,
+   in that order), interpolated `in oklch` so the warm→cool transitions stay vivid instead of
+   averaging to grey. Border + crystal + accent pick up the rose base via the tint vars. */
+[data-glass-tint="sistine"] {
+  --glass-tint-h: 75; /* surface: mirrors the Sistine switcher preset */
+  --glass-fg-h: 18; /* text/accent anchor: crimson (hand-selected) — hue 18 reads as deep red, not the rose at h8 */
+  --glass-tint-c: 0.062;
+  --glass-tint-a: 0.16;
+  --glass-wash-l: 81%;
+  --glass-bg: linear-gradient(
+    135deg in oklch,
+    oklch(90% 0.11 75 / 0.34) 0%,
+    oklch(86% 0.11 8 / 0.3) 33%,
+    oklch(86% 0.11 255 / 0.3) 66%,
+    oklch(87% 0.11 158 / 0.32) 100%
+  );
+  --glass-frosted-bg: linear-gradient(
+    135deg in oklch,
+    oklch(90% 0.11 75 / 0.46) 0%,
+    oklch(86% 0.11 8 / 0.42) 33%,
+    oklch(86% 0.11 255 / 0.42) 66%,
+    oklch(87% 0.11 158 / 0.44) 100%
+  );
+  /* Crystal composes its own background (not --glass-bg), so hand it the fresco explicitly. */
+  --glass-crystal-fresco: var(--glass-bg);
+}
+.dark[data-glass-tint="sistine"],
+.dark [data-glass-tint="sistine"] {
+  --glass-bg: linear-gradient(
+    135deg in oklch,
+    oklch(86% 0.11 75 / 0.22) 0%,
+    oklch(82% 0.11 8 / 0.2) 33%,
+    oklch(82% 0.11 255 / 0.2) 66%,
+    oklch(83% 0.11 158 / 0.22) 100%
+  );
+  --glass-frosted-bg: linear-gradient(
+    135deg in oklch,
+    oklch(86% 0.11 75 / 0.32) 0%,
+    oklch(82% 0.11 8 / 0.3) 33%,
+    oklch(82% 0.11 255 / 0.3) 66%,
+    oklch(83% 0.11 158 / 0.32) 100%
+  );
+  --glass-crystal-fresco: var(--glass-bg);
+}
+
+/* Aurora — northern lights: spring-green → teal → violet, interpolated `in oklch` so the cool sweep
+   stays vivid. Border + crystal + accent pick up the teal base via the tint vars.
+   DAY was authored at L 90/89/84 — within ~5 L of the L-95 page it composites onto — so after the
+   alpha only 2.2 L of separation survived and the bands read as haze rather than bands. Night works
+   because its stops sit 60+ L above an L-20 page and land 13.6 L clear of it. The fix is that
+   separation, not more colour: day already delivered MORE chroma than night (spread 26/29/19 against
+   14/15/13) and still looked washed out, because colour without lightness structure reads as fog.
+   Stops now sit at L 76.3/74.7/71.8, which also buys chroma headroom, so each takes ~90% of its OWN
+   hue's sRGB ceiling rather than one shared number — h292 violet was clipped to 65% at L 84 and is
+   fully in gamut here. Composited: spread 48/40/38 (was 26/29/19), separation 8.0 L (was 2.2).
+   How far this could go is bound by TEXT, not by taste. AutoForeground models a fresco surface from
+   the tint wash (--glass-tint-c/-a), never from this gradient literal, so it does not re-band when
+   these stops move and the contrast has to hold statically. --foreground-soft (the L-40 heading tier)
+   is the weakest pair on a light surface and sets the floor: at a composite of L 84 it measures 59.5
+   and fails, so the stops are placed to land no darker than ~L 86. Worst measured here is 63.5.
+   Frosted gets its OWN alphas rather than the old ~1.37x boost over --glass-bg: with stops this much
+   darker, that multiplier drove the violet composite to L 83.4 and soft to 58.4. These land all three
+   near L 86.4 instead. The authored shape is unchanged — green, then teal, then violet darkest. */
+/* Aurora now sweeps the retired Muse day sweep's hues — blue 235 → cyan 205 → teal-green 155 — instead of the old
+   green → cyan → violet. LIGHTNESS is untouched, because it is not a style choice here: the day stops
+   sit at L 71.8–76.3 to satisfy the --foreground-soft ≥60 Lc bind described above, and that sweep's own
+   L 91–94 is precisely the band these were moved away from when day read as haze.
+
+   CHROMA had to be re-derived, it could not travel with the hues. Each stop is 90% of that hue's OWN
+   sRGB ceiling at its lightness, which is the rule the previous stops already followed (all three
+   measured exactly 90%). A flat number cannot survive a hue change: the old 0.175 is 90% of green's
+   ceiling at L76.3 but 127% of blue's, so carrying it over would have clipped stop 1 outright.
+
+   Night is re-derived the same way, which also fixes a pre-existing clip: its violet stop asked 0.13
+   against a 0.1068 ceiling at h292/L80 — 122% — so that stop has been gamut-mapped by the browser all
+   along. */
+[data-glass-tint="aurora"] {
+  --glass-tint-h: 205; /* the sweep's midpoint, was 178 */
+  --glass-tint-c: 0.054;
+  --glass-tint-a: 0.16;
+  --glass-wash-l: 86%;
+  --glass-bg: linear-gradient(
+    135deg in oklch,
+    oklch(76.3% 0.124 235 / 0.4) 0%,
+    oklch(74.7% 0.111 205 / 0.38) 50%,
+    oklch(71.8% 0.155 155 / 0.38) 100%
+  );
+  --glass-frosted-bg: linear-gradient(
+    135deg in oklch,
+    oklch(76.3% 0.124 235 / 0.46) 0%,
+    oklch(74.7% 0.111 205 / 0.43) 50%,
+    oklch(71.8% 0.155 155 / 0.37) 100%
+  );
+  --glass-crystal-fresco: var(--glass-bg);
+}
+.dark[data-glass-tint="aurora"],
+.dark [data-glass-tint="aurora"] {
+  --glass-bg: linear-gradient(135deg in oklch, oklch(86% 0.071 235 / 0.22) 0%, oklch(85% 0.127 205 / 0.2) 50%, oklch(80% 0.173 155 / 0.22) 100%);
+  --glass-frosted-bg: linear-gradient(
+    135deg in oklch,
+    oklch(86% 0.071 235 / 0.32) 0%,
+    oklch(85% 0.127 205 / 0.3) 50%,
+    oklch(80% 0.173 155 / 0.32) 100%
+  );
+  --glass-crystal-fresco: var(--glass-bg);
+}
+
+/* Gloaming — dusk: gold → rose → indigo, interpolated `in oklch` so the warm→cool fade keeps its
+   glow. Night keeps the warm glow; day uses a dusk-rose anchor (the warm hue reads muddy as light-mode text). */
+[data-glass-tint="gloaming"] {
+  --glass-tint-h: 32; /* surface: mirrors the Gloaming switcher preset; text shares it (--glass-fg-h defaults to it) */
+  --glass-tint-c: 0.089;
+  /* 0.12, down from 0.16: with text solved against the gradient's hardest stop (the L78 violet, over a
+     dusk-rose wash that already sits dark), the light opaque card could not reach the 75 Lc body floor
+     even in pure black (74.6). 0.14 reached it only in black; 0.12 keeps the ink tinted. */
+  --glass-tint-a: 0.12;
+  --glass-wash-l: 64%;
+  --glass-bg: linear-gradient(135deg in oklch, oklch(89% 0.12 62 / 0.32) 0%, oklch(84% 0.14 350 / 0.3) 50%, oklch(78% 0.13 278 / 0.3) 100%);
+  --glass-frosted-bg: linear-gradient(135deg in oklch, oklch(89% 0.12 62 / 0.44) 0%, oklch(84% 0.14 350 / 0.42) 50%, oklch(78% 0.13 278 / 0.42) 100%);
+  --glass-crystal-fresco: var(--glass-bg);
+}
+.dark[data-glass-tint="gloaming"],
+.dark [data-glass-tint="gloaming"] {
+  --glass-tint-h: 32; /* night keeps the warm glow; day uses the dusk-rose above */
+  --glass-bg: linear-gradient(135deg in oklch, oklch(86% 0.12 62 / 0.22) 0%, oklch(80% 0.14 350 / 0.2) 50%, oklch(74% 0.13 278 / 0.22) 100%);
+  --glass-frosted-bg: linear-gradient(135deg in oklch, oklch(86% 0.12 62 / 0.32) 0%, oklch(80% 0.14 350 / 0.3) 50%, oklch(74% 0.13 278 / 0.32) 100%);
+  --glass-crystal-fresco: var(--glass-bg);
+}
