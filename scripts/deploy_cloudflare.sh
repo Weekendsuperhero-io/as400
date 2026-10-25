@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-WEB_DIR="/Users/weekendsuperhero/GEMINI_HACKATHON/as400/carddemo-web"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WEB_DIR="$(cd "${SCRIPT_DIR}/../carddemo-web" && pwd)"
 
 echo "=========================================================="
 echo "🚀 CLOUDFLARE WORKERS & PAGES DEPLOYMENT FOR CARDDEMO"

@@ -861,20 +861,24 @@ export function App() {
     MAINFRAME_LANDMINES.find((l) => l.id === selectedLandmineId) || MAINFRAME_LANDMINES[0];
 
   const selectedAccount = accounts.find((a) => a.acct_id === selectedAcctId) || accounts[0];
-  const filteredAccounts = accounts.filter(
-    (a) =>
-      a.acct_id.includes(searchQuery) ||
-      a.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.card_num.includes(searchQuery) ||
-      a.addr_zip.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const q = (searchQuery || '').trim().toLowerCase();
+  const filteredAccounts = accounts.filter((a) => {
+    if (!a) return false;
+    const acctId = (a.acct_id ?? '').toLowerCase();
+    const custName = (a.customer_name ?? '').toLowerCase();
+    const cardNum = (a.card_num ?? '').toLowerCase();
+    const zip = (a.addr_zip ?? '').toLowerCase();
+    return !q || acctId.includes(q) || custName.includes(q) || cardNum.includes(q) || zip.includes(q);
+  });
 
-  const filteredCards = cards.filter(
-    (c) =>
-      c.acct_id.includes(cardFilterQuery) ||
-      c.card_num.includes(cardFilterQuery) ||
-      c.embossed_name.toLowerCase().includes(cardFilterQuery.toLowerCase())
-  );
+  const cq = (cardFilterQuery || '').trim().toLowerCase();
+  const filteredCards = cards.filter((c) => {
+    if (!c) return false;
+    const acctId = (c.acct_id ?? '').toLowerCase();
+    const cardNum = (c.card_num ?? '').toLowerCase();
+    const embName = (c.embossed_name ?? '').toLowerCase();
+    return !cq || acctId.includes(cq) || cardNum.includes(cq) || embName.includes(cq);
+  });
 
   const activeWindowDef =
     AS400_WINDOWS.find((w) => w.id === activeWindow) || AS400_WINDOWS[0];

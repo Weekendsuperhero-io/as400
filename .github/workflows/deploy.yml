@@ -1,0 +1,48 @@
+name: Cloud Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy to Cloudflare
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: carddemo-web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: carddemo-web
+        run: npm ci
+
+      - name: Build Web Application (Cloud Build)
+        working-directory: carddemo-web
+        run: npm run build
+
+      - name: Verify Bundle & Snapshot
+        working-directory: carddemo-web
+        run: |
+          test -f dist/index.html
+          test -f worker-snapshot.json
+          echo "Cloud build succeeded with complete assets!"
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        with:
+          workingDirectory: 'carddemo-web'
+          command: 'deploy'
