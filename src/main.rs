@@ -332,6 +332,114 @@ pub struct SecurityGateResponseDto {
 
 #[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct CardRecordDto {
+    pub card_num: String,
+    pub acct_id: String,
+    pub cust_id: String,
+    pub cvv_cd: String,
+    pub embossed_name: String,
+    pub expiration_date: String,
+    pub active_status: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct UpdateCardRequest {
+    pub embossed_name: String,
+    pub expiration_date: String,
+    pub active_status: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct UpdateCardResponseDto {
+    pub card_num: String,
+    pub acct_id: String,
+    pub embossed_name: String,
+    pub expiration_date: String,
+    pub active_status: String,
+    pub message: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct AddTransactionRequest {
+    pub acct_id: String,
+    pub card_num: String,
+    pub type_cd: String,
+    pub cat_cd: String,
+    pub source: String,
+    pub description: String,
+    pub amt: String,
+    pub merchant_id: String,
+    pub merchant_name: String,
+    pub merchant_city: String,
+    pub merchant_zip: String,
+    pub orig_date: String,
+    pub proc_date: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct AddTransactionResponseDto {
+    pub tran_id: String,
+    pub acct_id: String,
+    pub new_balance: String,
+    pub message: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct TransactionReportRequest {
+    pub report_type: String, // "MONTHLY", "YEARLY", "CUSTOM"
+    pub start_date: String,
+    pub end_date: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct TransactionReportResponseDto {
+    pub report_type: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub transaction_count: i32,
+    pub total_amount: String,
+    pub message: String,
+    pub transactions: Vec<TransactionRowDto>,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct SecUserDto {
+    pub usr_id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub usr_type: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct UserSecurityActionRequest {
+    pub action: String, // "ADD", "UPDATE", "DELETE", "SIGNON"
+    pub usr_id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub password: String,
+    pub usr_type: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct UserSecurityActionResponseDto {
+    pub success: bool,
+    pub usr_id: String,
+    pub usr_type: String,
+    pub target_menu: String,
+    pub message: String,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct BillPayRequest {
     pub confirm: String,
 }
@@ -404,6 +512,16 @@ pub struct FraudToggleRequest {
         FraudToggleResponseDto,
         SecurityGateRequest,
         SecurityGateResponseDto,
+        CardRecordDto,
+        UpdateCardRequest,
+        UpdateCardResponseDto,
+        AddTransactionRequest,
+        AddTransactionResponseDto,
+        TransactionReportRequest,
+        TransactionReportResponseDto,
+        SecUserDto,
+        UserSecurityActionRequest,
+        UserSecurityActionResponseDto,
         BillPayRequest,
         UpdateAccountRequest,
         Db2ActionRequest,
@@ -454,6 +572,16 @@ fn generate_typescript_bindings(out_path: &PathBuf) -> Result<(), String> {
         FraudToggleResponseDto::decl(&cfg),
         SecurityGateRequest::decl(&cfg),
         SecurityGateResponseDto::decl(&cfg),
+        CardRecordDto::decl(&cfg),
+        UpdateCardRequest::decl(&cfg),
+        UpdateCardResponseDto::decl(&cfg),
+        AddTransactionRequest::decl(&cfg),
+        AddTransactionResponseDto::decl(&cfg),
+        TransactionReportRequest::decl(&cfg),
+        TransactionReportResponseDto::decl(&cfg),
+        SecUserDto::decl(&cfg),
+        UserSecurityActionRequest::decl(&cfg),
+        UserSecurityActionResponseDto::decl(&cfg),
         BillPayRequest::decl(&cfg),
         UpdateAccountRequest::decl(&cfg),
         Db2ActionRequest::decl(&cfg),
@@ -560,7 +688,11 @@ async fn main() -> Result<(), String> {
         .route("/api/accounts", get(list_accounts))
         .route("/api/accounts/{id}", get(get_account_detail).put(update_account))
         .route("/api/accounts/{id}/bill-pay", post(post_bill_pay))
-        .route("/api/transactions", get(list_transactions))
+        .route("/api/cards", get(list_cards))
+        .route("/api/cards/{card_num}", axum::routing::put(update_card))
+        .route("/api/transactions", get(list_transactions).post(post_add_transaction))
+        .route("/api/reports/transactions", post(post_transaction_report))
+        .route("/api/users", get(list_users).post(mutate_users))
         .route("/api/rejects", get(list_rejects))
         .route("/api/db2/tx-types", get(list_db2_tx_types).post(mutate_db2_tx_types))
         .route("/api/ims/authorizations", get(list_ims_authorizations))
@@ -632,7 +764,7 @@ async fn get_overview(State(state): State<AppState>) -> Json<OverviewResponseDto
 
     Json(OverviewResponseDto {
         status: "ONLINE".to_string(),
-        engine: "Safe Rust (#![forbid(unsafe_code)]) + SQLite WAL + rust_decimal".to_string(),
+        engine: "Safe Rust + SQLite WAL + rust_decimal".to_string(),
         sqlite_wal,
         managed_agent: ManagedAgentInfoDto {
             agent: "antigravity-preview-09-2026".to_string(),
@@ -881,6 +1013,386 @@ async fn update_account(
         credit_limit: lim,
         active_status,
     }))
+}
+
+async fn list_cards(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CardRecordDto>>, StatusCode> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare(
+            "SELECT c.card_num, c.acct_id, COALESCE(x.cust_id, ''), c.cvv_cd,
+                    c.embossed_name, c.expiration_date, c.active_status
+             FROM cards c
+             LEFT JOIN card_xref x ON x.card_num = c.card_num
+             ORDER BY c.acct_id, c.card_num",
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rows: Vec<CardRecordDto> = stmt
+        .query_map([], |r| {
+            Ok(CardRecordDto {
+                card_num: r.get(0)?,
+                acct_id: r.get(1)?,
+                cust_id: r.get(2)?,
+                cvv_cd: r.get(3)?,
+                embossed_name: r.get(4)?,
+                expiration_date: r.get(5)?,
+                active_status: r.get(6)?,
+            })
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(Result::ok)
+        .collect();
+    Ok(Json(rows))
+}
+
+async fn update_card(
+    State(state): State<AppState>,
+    AxumPath(card_num): AxumPath<String>,
+    Json(req): Json<UpdateCardRequest>,
+) -> Result<Json<UpdateCardResponseDto>, StatusCode> {
+    let conn = state.db.lock().unwrap();
+    let name = req.embossed_name.trim().to_uppercase();
+    let exp = req.expiration_date.trim().to_string();
+    let stat = req.active_status.trim().to_uppercase();
+    conn.execute(
+        "UPDATE cards SET embossed_name = ?1, expiration_date = ?2, active_status = ?3 WHERE card_num = ?4",
+        params![name, exp, stat, card_num],
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let acct_id: String = conn
+        .query_row(
+            "SELECT acct_id FROM cards WHERE card_num = ?1",
+            params![card_num],
+            |r| r.get(0),
+        )
+        .unwrap_or_else(|_| "00000000001".to_string());
+    Ok(Json(UpdateCardResponseDto {
+        card_num: card_num.clone(),
+        acct_id,
+        embossed_name: name,
+        expiration_date: exp,
+        active_status: stat,
+        message: format!("CHANGES TO CREDIT CARD {} SAVED (COCRDUPC)", card_num),
+    }))
+}
+
+async fn post_add_transaction(
+    State(state): State<AppState>,
+    Json(req): Json<AddTransactionRequest>,
+) -> Result<Json<AddTransactionResponseDto>, StatusCode> {
+    let conn = state.db.lock().unwrap();
+    let amt_dec = parse_money(&req.amt);
+    let amt_str = fmt_money(amt_dec);
+    let acct_id = if !req.acct_id.trim().is_empty() {
+        req.acct_id.trim().to_string()
+    } else {
+        conn.query_row(
+            "SELECT acct_id FROM card_xref WHERE card_num = ?1 LIMIT 1",
+            params![req.card_num.trim()],
+            |r| r.get(0),
+        )
+        .map_err(|_| StatusCode::BAD_REQUEST)?
+    };
+    let card_num = if !req.card_num.trim().is_empty() {
+        req.card_num.trim().to_string()
+    } else {
+        conn.query_row(
+            "SELECT card_num FROM card_xref WHERE acct_id = ?1 LIMIT 1",
+            params![acct_id],
+            |r| r.get(0),
+        )
+        .unwrap_or_else(|_| "0000000000000000".to_string())
+    };
+    let curr_bal_str: String = conn
+        .query_row(
+            "SELECT curr_bal FROM accounts WHERE acct_id = ?1",
+            params![acct_id],
+            |r| r.get(0),
+        )
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let new_bal = parse_money(&curr_bal_str) + amt_dec;
+
+    let max_id_str: Option<String> = conn
+        .query_row(
+            "SELECT MAX(tran_id) FROM transactions WHERE tran_id GLOB '[0-9]*'",
+            [],
+            |r| r.get(0),
+        )
+        .ok()
+        .flatten();
+    let next_num = max_id_str
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(2022071800000100)
+        + 1;
+    let new_tran_id = format!("{:016}", next_num);
+    let orig_ts = if req.orig_date.trim().is_empty() {
+        Utc::now().format("%Y-%m-%d-%H.%M.%S.000000").to_string()
+    } else {
+        req.orig_date.trim().to_string()
+    };
+    let proc_ts = if req.proc_date.trim().is_empty() {
+        orig_ts.clone()
+    } else {
+        req.proc_date.trim().to_string()
+    };
+
+    conn.execute(
+        "INSERT INTO transactions (
+            tran_id, acct_id, type_cd, cat_cd, source, description, amt,
+            merchant_id, merchant_name, merchant_city, merchant_zip,
+            card_num, orig_ts, proc_ts
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+        params![
+            new_tran_id,
+            acct_id,
+            req.type_cd.trim(),
+            req.cat_cd.trim(),
+            req.source.trim(),
+            req.description.trim(),
+            amt_str,
+            req.merchant_id.trim(),
+            req.merchant_name.trim(),
+            req.merchant_city.trim(),
+            req.merchant_zip.trim(),
+            card_num,
+            orig_ts,
+            proc_ts
+        ],
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    conn.execute(
+        "UPDATE accounts SET curr_bal = ?1 WHERE acct_id = ?2",
+        params![fmt_money(new_bal), acct_id],
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(AddTransactionResponseDto {
+        tran_id: new_tran_id.clone(),
+        acct_id,
+        new_balance: fmt_money(new_bal),
+        message: format!(
+            "Transaction added successfully. Your Tran ID is {} (COTRN02C).",
+            new_tran_id
+        ),
+    }))
+}
+
+async fn post_transaction_report(
+    State(state): State<AppState>,
+    Json(req): Json<TransactionReportRequest>,
+) -> Result<Json<TransactionReportResponseDto>, StatusCode> {
+    let conn = state.db.lock().unwrap();
+    let mode = req.report_type.trim().to_uppercase();
+    let (start_date, end_date) = match mode.as_str() {
+        "MONTHLY" => ("2022-01-01".to_string(), "2026-12-31".to_string()),
+        "YEARLY" => ("2021-01-01".to_string(), "2026-12-31".to_string()),
+        _ => (
+            if req.start_date.trim().is_empty() {
+                "2021-01-01".to_string()
+            } else {
+                req.start_date.trim().to_string()
+            },
+            if req.end_date.trim().is_empty() {
+                "2026-12-31".to_string()
+            } else {
+                req.end_date.trim().to_string()
+            },
+        ),
+    };
+    let mut stmt = conn
+        .prepare(
+            "SELECT tran_id, acct_id, type_cd, cat_cd, source, description, amt,
+                    merchant_name, merchant_city, card_num, orig_ts
+             FROM transactions
+             WHERE substr(orig_ts, 1, 10) >= ?1 AND substr(orig_ts, 1, 10) <= ?2
+             ORDER BY acct_id ASC, tran_id DESC LIMIT 150",
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rows: Vec<TransactionRowDto> = stmt
+        .query_map(params![start_date, end_date], |r| {
+            Ok(TransactionRowDto {
+                tran_id: r.get(0)?,
+                acct_id: r.get(1)?,
+                type_cd: r.get(2)?,
+                cat_cd: r.get(3)?,
+                source: r.get(4)?,
+                description: r.get(5)?,
+                amt: r.get(6)?,
+                merchant_name: r.get(7)?,
+                merchant_city: r.get(8)?,
+                card_num: r.get(9)?,
+                orig_ts: r.get(10)?,
+            })
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(Result::ok)
+        .collect();
+    let mut total = parse_money("0.00");
+    for r in &rows {
+        total += parse_money(&r.amt);
+    }
+    Ok(Json(TransactionReportResponseDto {
+        report_type: mode.clone(),
+        start_date: start_date.clone(),
+        end_date: end_date.clone(),
+        transaction_count: rows.len() as i32,
+        total_amount: fmt_money(total),
+        message: format!(
+            "{} Transaction Report generated via CORPT00C / CBTRN03C ({}..{}): {} records totaling ${}",
+            mode,
+            start_date,
+            end_date,
+            rows.len(),
+            fmt_money(total)
+        ),
+        transactions: rows,
+    }))
+}
+
+async fn list_users(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<SecUserDto>>, StatusCode> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT usr_id, first_name, last_name, usr_type FROM sec_users ORDER BY usr_id")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rows: Vec<SecUserDto> = stmt
+        .query_map([], |r| {
+            Ok(SecUserDto {
+                usr_id: r.get(0)?,
+                first_name: r.get(1)?,
+                last_name: r.get(2)?,
+                usr_type: r.get(3)?,
+            })
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(Result::ok)
+        .collect();
+    Ok(Json(rows))
+}
+
+async fn mutate_users(
+    State(state): State<AppState>,
+    Json(req): Json<UserSecurityActionRequest>,
+) -> Json<UserSecurityActionResponseDto> {
+    let conn = state.db.lock().unwrap();
+    let action = req.action.trim().to_uppercase();
+    let uid = req.usr_id.trim().to_uppercase();
+    let fname = req.first_name.trim().to_uppercase();
+    let lname = req.last_name.trim().to_uppercase();
+    let pass = req.password.trim().to_uppercase();
+    let utype = if req.usr_type.trim().eq_ignore_ascii_case("A") {
+        "A".to_string()
+    } else {
+        "U".to_string()
+    };
+
+    match action.as_str() {
+        "SIGNON" => {
+            let found: Option<(String, String)> = conn
+                .query_row(
+                    "SELECT password, usr_type FROM sec_users WHERE usr_id = ?1",
+                    params![uid],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .ok();
+            match found {
+                Some((db_p, role)) if db_p == pass => Json(UserSecurityActionResponseDto {
+                    success: true,
+                    usr_id: uid.clone(),
+                    usr_type: role.clone(),
+                    target_menu: if role == "A" {
+                        "COADM01C".to_string()
+                    } else {
+                        "COMEN01C".to_string()
+                    },
+                    message: format!(
+                        "COSGN00C Sign-on Verified: {} ({}) -> {}",
+                        uid,
+                        if role == "A" { "Admin" } else { "Regular User" },
+                        if role == "A" { "COADM01C" } else { "COMEN01C" }
+                    ),
+                }),
+                Some(_) => Json(UserSecurityActionResponseDto {
+                    success: false,
+                    usr_id: uid,
+                    usr_type: utype,
+                    target_menu: "COSGN00C".to_string(),
+                    message: "Wrong Password. Try again ... (COSGN00C)".to_string(),
+                }),
+                None => Json(UserSecurityActionResponseDto {
+                    success: false,
+                    usr_id: uid,
+                    usr_type: utype,
+                    target_menu: "COSGN00C".to_string(),
+                    message: "User not found. Try again ... (COSGN00C)".to_string(),
+                }),
+            }
+        }
+        "ADD" => match conn.execute(
+            "INSERT INTO sec_users (usr_id, first_name, last_name, password, usr_type) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![uid, fname, lname, if pass.is_empty() { "PASSWORD" } else { &pass }, utype],
+        ) {
+            Ok(_) => Json(UserSecurityActionResponseDto {
+                success: true,
+                usr_id: uid.clone(),
+                usr_type: utype,
+                target_menu: "COUSR00C".to_string(),
+                message: format!("User {} has been added ... (COUSR01C)", uid),
+            }),
+            Err(_) => Json(UserSecurityActionResponseDto {
+                success: false,
+                usr_id: uid.clone(),
+                usr_type: utype,
+                target_menu: "COUSR01C".to_string(),
+                message: format!("User ID {} already exists ... (COUSR01C)", uid),
+            }),
+        },
+        "UPDATE" => {
+            let n = conn
+                .execute(
+                    "UPDATE sec_users SET first_name = ?1, last_name = ?2, usr_type = ?3 WHERE usr_id = ?4",
+                    params![fname, lname, utype, uid],
+                )
+                .unwrap_or(0);
+            Json(UserSecurityActionResponseDto {
+                success: n > 0,
+                usr_id: uid.clone(),
+                usr_type: utype,
+                target_menu: "COUSR00C".to_string(),
+                message: if n > 0 {
+                    format!("User {} has been updated ... (COUSR02C)", uid)
+                } else {
+                    format!("User ID {} NOT found ... (COUSR02C)", uid)
+                },
+            })
+        }
+        "DELETE" => {
+            let n = conn
+                .execute("DELETE FROM sec_users WHERE usr_id = ?1", params![uid])
+                .unwrap_or(0);
+            Json(UserSecurityActionResponseDto {
+                success: n > 0,
+                usr_id: uid.clone(),
+                usr_type: utype,
+                target_menu: "COUSR00C".to_string(),
+                message: if n > 0 {
+                    format!("User {} has been deleted ... (COUSR03C)", uid)
+                } else {
+                    format!("User ID {} NOT found ... (COUSR03C)", uid)
+                },
+            })
+        }
+        _ => Json(UserSecurityActionResponseDto {
+            success: false,
+            usr_id: uid,
+            usr_type: utype,
+            target_menu: "COUSR00C".to_string(),
+            message: "Invalid USRSEC operation".to_string(),
+        }),
+    }
 }
 
 async fn list_transactions(

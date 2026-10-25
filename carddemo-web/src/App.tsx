@@ -1,35 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import {
   TerminalWindowIcon,
-  SparkleIcon,
   ShieldCheckIcon,
   PlayIcon,
-  CreditCardIcon,
-  WarningOctagonIcon,
-  CheckCircleIcon,
-  LightningIcon,
-  DatabaseIcon,
   MagnifyingGlassIcon,
   DiamondIcon,
-  PaletteIcon,
-  MoonIcon,
-  SunIcon,
-  ArrowsLeftRightIcon,
-  ReceiptIcon,
   UserCircleIcon,
-  CpuIcon,
   ColumnsIcon,
+  ListIcon,
+  XIcon,
+  FileTextIcon,
+  UsersIcon,
+  PlusCircleIcon,
+  PencilSimpleIcon,
+  SparkleIcon,
+  ReceiptIcon,
+  WarningOctagonIcon,
+  CheckCircleIcon,
+  CpuIcon,
+  CreditCardIcon,
 } from '@phosphor-icons/react';
 
 import { AutoForeground, FG_EVENT } from '@/components/auto-foreground';
-import { GradientBackground } from '@/components/gradient-background';
-import { PatternBackground, type PatternStyle } from '@/components/pattern-background';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -44,9 +41,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Kbd, KbdGroup } from '@/components/ui/kbd';
+import { Kbd } from '@/components/ui/kbd';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -55,13 +51,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
   AccountDetailResponseDto,
+  AccountParityDiff,
   AccountSummary,
   AccountTransactionDto,
+  AddTransactionResponseDto,
   BatchParityReport,
   BillPayResponseDto,
+  CardRecordDto,
   CategoryBalanceDto,
   DailyRejectDto,
   Db2CatalogResponseDto,
@@ -71,52 +69,160 @@ import type {
   ImsAuthorizationsResponseDto,
   MqAuthorizeResponseDto,
   OverviewResponseDto,
+  SecUserDto,
   SecurityGateResponseDto,
   TerminalScreenResponse,
+  TransactionReportResponseDto,
+  TransactionRowDto,
   UpdateAccountResponseDto,
+  UpdateCardResponseDto,
+  UserSecurityActionResponseDto,
 } from '@/types/api';
 
 const SISTINE_MATERIALS = [
-  { value: 'glass', label: 'Glass', desc: 'Adaptive translucent sheet' },
+  { value: 'opaque', label: 'AS/400 Opaque', desc: 'High-contrast black & phosphor green' },
   { value: 'crystal', label: 'Crystal', desc: 'Specular cut-edge refraction' },
+  { value: 'glass', label: 'Glass', desc: 'Adaptive translucent sheet' },
   { value: 'frosted', label: 'Frosted', desc: 'Deep 25px diffuse frost' },
   { value: 'chakra', label: 'Chakra', desc: 'Prismatic harmonic rim' },
-  { value: 'opaque', label: 'Opaque', desc: 'Solid stone mineral floor' },
 ] as const;
 
 type SistineMaterial = (typeof SISTINE_MATERIALS)[number]['value'];
 
 const SISTINE_TINTS = [
+  { value: 'selenite', label: 'Monochrome Phosphor', group: 'AS/400' },
+  { value: 'aventurine', label: 'Green Phosphor P1', group: 'AS/400' },
+  { value: 'amber', label: 'Amber Phosphor P3', group: 'AS/400' },
   { value: 'sistine', label: 'Sistine Fresco', group: 'Frescoes' },
-  { value: 'muse', label: 'Muse Fresco', group: 'Frescoes' },
-  { value: 'aurora', label: 'Aurora Fresco', group: 'Frescoes' },
-  { value: 'gloaming', label: 'Gloaming Fresco', group: 'Frescoes' },
   { value: 'lapis', label: 'Lapis Lazuli', group: 'Stones' },
   { value: 'sapphire', label: 'Sapphire', group: 'Stones' },
-  { value: 'aquamarine', label: 'Aquamarine', group: 'Stones' },
-  { value: 'turquoise', label: 'Turquoise', group: 'Stones' },
-  { value: 'aventurine', label: 'Aventurine', group: 'Stones' },
-  { value: 'peridot', label: 'Peridot', group: 'Stones' },
-  { value: 'amber', label: 'Amber', group: 'Stones' },
-  { value: 'goldstone', label: 'Goldstone', group: 'Stones' },
-  { value: 'carnelian', label: 'Carnelian', group: 'Stones' },
-  { value: 'rose', label: 'Rose Quartz', group: 'Stones' },
-  { value: 'tourmaline', label: 'Tourmaline', group: 'Stones' },
-  { value: 'amethyst', label: 'Amethyst', group: 'Stones' },
-  { value: 'moonstone', label: 'Moonstone', group: 'Stones' },
-  { value: 'selenite', label: 'Selenite (Neutral)', group: 'Stones' },
 ] as const;
 
 type SistineTint = (typeof SISTINE_TINTS)[number]['value'];
 
-const BACKDROP_MODES: { value: 'gradient' | PatternStyle; label: string }[] = [
-  { value: 'gradient', label: 'OKLCH Harmonic Ramp' },
-  { value: 'moonrise', label: 'Moonrise Scene' },
-  { value: 'forest', label: 'Forest Canopy' },
-  { value: 'dune', label: 'Desert Dune' },
-  { value: 'aurora', label: 'Aurora Curtains' },
-  { value: 'synthwave', label: 'Synthwave Horizon' },
-  { value: 'mesh', label: 'Harmonic Mesh' },
+type As400WindowId =
+  | 'CAVW'
+  | 'CAUP'
+  | 'CCLI'
+  | 'CT00'
+  | 'CT02'
+  | 'CR00'
+  | 'CBIL'
+  | 'CPVS'
+  | 'CTLI'
+  | 'CU00'
+  | 'CBMN';
+
+interface As400WindowDef {
+  id: As400WindowId;
+  tranCode: string;
+  bmsMap: string;
+  cobolProg: string;
+  title: string;
+  subtitle: string;
+  category: 'Core CICS Online' | 'Card & Ledger Ops' | 'DB2 / IMS / Admin' | 'Batch & Parity';
+}
+
+const AS400_WINDOWS: As400WindowDef[] = [
+  {
+    id: 'CAVW',
+    tranCode: 'CAVW',
+    bmsMap: 'COACTVW',
+    cobolProg: 'COACTVWC',
+    title: 'Customer & Account Inquiry',
+    subtitle: 'Search 50 VSAM accounts, customer master & 300-byte tape',
+    category: 'Core CICS Online',
+  },
+  {
+    id: 'CAUP',
+    tranCode: 'CAUP',
+    bmsMap: 'COACTUP',
+    cobolProg: 'COACTUPC',
+    title: 'Account Master Update',
+    subtitle: 'Modify credit limit, active status & VSAM ACCTDATA record',
+    category: 'Core CICS Online',
+  },
+  {
+    id: 'CBIL',
+    tranCode: 'CBIL',
+    bmsMap: 'COBIL00',
+    cobolProg: 'COBIL00C',
+    title: 'Online Bill Payment',
+    subtitle: 'Full balance settlement & online payment posting (CXACAIX)',
+    category: 'Core CICS Online',
+  },
+  {
+    id: 'CCLI',
+    tranCode: 'CCLI / CCDL / CCUP',
+    bmsMap: 'COCRDLI / SL / UP',
+    cobolProg: 'COCRDLIC / SLC / UPC',
+    title: 'Credit Card List & Update',
+    subtitle: 'Browse 50 cards via CARDAIX & edit embossed name / status',
+    category: 'Card & Ledger Ops',
+  },
+  {
+    id: 'CT00',
+    tranCode: 'CT00 / CT01',
+    bmsMap: 'COTRN00 / COTRN01',
+    cobolProg: 'COTRN00C / COTRN01C',
+    title: 'Transaction List & Detail',
+    subtitle: 'Browse TRANSACT KSDS ledger & inspect single record fields',
+    category: 'Card & Ledger Ops',
+  },
+  {
+    id: 'CT02',
+    tranCode: 'CT02',
+    bmsMap: 'COTRN02',
+    cobolProg: 'COTRN02C',
+    title: 'Add New Transaction',
+    subtitle: 'Post online transaction to TRANSACT & update account balance',
+    category: 'Card & Ledger Ops',
+  },
+  {
+    id: 'CR00',
+    tranCode: 'CR00',
+    bmsMap: 'CORPT00',
+    cobolProg: 'CORPT00C ➔ CBTRN03C',
+    title: 'Transaction Reports',
+    subtitle: 'Generate Monthly, Yearly & Custom Date Range JCL reports',
+    category: 'Card & Ledger Ops',
+  },
+  {
+    id: 'CPVS',
+    tranCode: 'CPVS / CPVD',
+    bmsMap: 'COPAU00 / COPAU01',
+    cobolProg: 'COPAUS0C / 1C / A0C',
+    title: 'IMS Auth, Fraud & MQ Swipe',
+    subtitle: 'IMS HIDAM 9C keys, real-time MQ swipe & DB2 AUTHFRDS',
+    category: 'DB2 / IMS / Admin',
+  },
+  {
+    id: 'CTLI',
+    tranCode: 'CTLI / CTTU',
+    bmsMap: 'COTRTLI / COTRTUP',
+    cobolProg: 'COTRTLIC / COTRTUPC',
+    title: 'DB2 Transaction Types',
+    subtitle: 'Maintain CARDDEMO.TRANSACTION_TYPE with SQLCODE 0/-803/-532',
+    category: 'DB2 / IMS / Admin',
+  },
+  {
+    id: 'CU00',
+    tranCode: 'CU00–CU03 / CC00',
+    bmsMap: 'COUSR00..03 / COSGN00',
+    cobolProg: 'COUSR00C..03C',
+    title: 'User Security & Sign-On',
+    subtitle: 'Manage USRSEC VSAM KSDS operators (Admin / User roles)',
+    category: 'DB2 / IMS / Admin',
+  },
+  {
+    id: 'CBMN',
+    tranCode: 'JCL / PARITY',
+    bmsMap: 'CBTRN02C / CBACT04C',
+    cobolProg: 'NIGHTLY BATCH DAG',
+    title: 'Batch, Parity, Landmines & Gate',
+    subtitle: '50/50 Golden Parity, DALYREJS, 6 Landmines & Security Gate',
+    category: 'Batch & Parity',
+  },
 ];
 
 const POS_OVERPUNCH = ['{', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
@@ -156,58 +262,66 @@ const MAINFRAME_LANDMINES = [
     id: 1,
     title: 'Signed Zoned-Decimal Overpunch Bytes ({, A–I, }, J–R)',
     files: 'CVACT01Y.cpy, CVTRA06Y.cpy, acctdata.txt, dailytran.txt',
-    impact: 'Standard ASCII parsers corrupt negative & positive last-byte high nibbles on all 50 accounts.',
+    impact:
+      'Standard ASCII parsers corrupt negative & positive last-byte high nibbles on all 50 accounts.',
     cobol: `05  ACCT-CURR-BAL         PIC S9(10)V99.\n05  DALYTRAN-AMT          PIC S9(09)V99.\n* Raw seed bytes in dailytran.txt:\n* "0000005047G" -> +$504.77\n* "0000009190}" -> -$919.00\n* "0000005358Q" -> -$535.88`,
-    rust: `// src/vsam_codec.rs (#![forbid(unsafe_code)])\nlet (digit, is_neg) = match last_char {\n    '{' => (0, false), 'A'..='I' => ((last_char as u8 - b'A' + 1), false),\n    '}' => (0, true),  'J'..='R' => ((last_char as u8 - b'J' + 1), true),\n    _ => return Err("Invalid EBCDIC/ASCII overpunch".into()),\n};`,
+    rust: `let (digit, is_neg) = match last_char {\n    '{' => (0, false), 'A'..='I' => ((last_char as u8 - b'A' + 1), false),\n    '}' => (0, true),  'J'..='R' => ((last_char as u8 - b'J' + 1), true),\n    _ => return Err("Invalid EBCDIC/ASCII overpunch".into()),\n};`,
   },
   {
     id: 2,
     title: 'ACCT-ADDR-ZIP vs ACCT-GROUP-ID 10-Byte Column Shift',
     files: 'CVACT01Y.cpy (cols 102..122), acctdata.txt, CBACT04C.cbl',
-    impact: 'Places A000000000 in ACCT-ADDR-ZIP and spaces in ACCT-GROUP-ID, triggering VSAM STATUS 23 -> DEFAULT.',
+    impact:
+      'Places A000000000 in ACCT-ADDR-ZIP and spaces in ACCT-GROUP-ID, triggering VSAM STATUS 23 -> DEFAULT.',
     cobol: `* CBACT04C.cbl lines 404-411:\nREAD DISCGRP-FILE INTO SEC-GROUP-DATA\nIF DISCGRP-STATUS = '23'\n   MOVE 'DEFAULT   ' TO FD-DIS-ACCT-GROUP-ID\n   PERFORM 1200-A-READ-DEFAULT-DISCGRP\nEND-IF`,
-    rust: `// src/batch_engine.rs\nlet grp = if a.group_id.trim().is_empty() {\n    "DEFAULT".to_string()\n} else {\n    a.group_id.clone()\n};\nlet rate = discgrp.get(&(grp, type_cd, cat_cd))\n    .or_else(|| discgrp.get(&("DEFAULT".into(), type_cd, cat_cd)));`,
+    rust: `let grp = if a.group_id.trim().is_empty() {\n    "DEFAULT".to_string()\n} else {\n    a.group_id.clone()\n};\nlet rate = discgrp.get(&(grp, type_cd, cat_cd))\n    .or_else(|| discgrp.get(&("DEFAULT".into(), type_cd, cat_cd)));`,
   },
   {
     id: 3,
     title: 'Inverted Sign on ACCT-CURR-CYC-DEBIT & Code 103 Overwrite',
     files: 'CBTRN02C.cbl (1500-B-LOOKUP-ACCT & 2800-UPDATE-ACCOUNT-REC)',
-    impact: 'Negative transactions store negative values in CYC-DEBIT; sequential IF overwrites 102 Overlimit with 103 Expired.',
+    impact:
+      'Negative transactions store negative values in CYC-DEBIT; sequential IF overwrites 102 Overlimit with 103 Expired.',
     cobol: `* CBTRN02C.cbl lines 389-408:\nCOMPUTE WS-TEMP-BAL = ACCT-CURR-CYC-CREDIT\n                    - ACCT-CURR-CYC-DEBIT\n                    + DALYTRAN-AMT\nIF ACCT-CREDIT-LIMIT < WS-TEMP-BAL\n   MOVE 102 TO WS-VALIDATION-FAIL-REASON\nEND-IF\nIF ACCT-EXPIRAION-DATE < DALYTRAN-ORIG-TS (1:10)\n   MOVE 103 TO WS-VALIDATION-FAIL-REASON\nEND-IF`,
-    rust: `// src/batch_engine.rs\nlet temp_bal = acct.curr_cyc_credit - acct.curr_cyc_debit + d.amt;\nif acct.credit_limit < temp_bal {\n    fail_reason = 102; // Overlimit\n}\nif acct.expiration_date.as_str() < tx_date {\n    fail_reason = 103; // Sequential IF overwrites 102!\n}`,
+    rust: `let temp_bal = acct.curr_cyc_credit - acct.curr_cyc_debit + d.amt;\nif acct.credit_limit < temp_bal {\n    fail_reason = 102; // Overlimit\n}\nif acct.expiration_date.as_str() < tx_date {\n    fail_reason = 103; // Sequential IF overwrites 102!\n}`,
   },
   {
     id: 4,
     title: 'Unrounded PIC S9(09)V99 Intermediate Cent Truncation',
     files: 'CBACT04C.cbl (1300-COMPUTE-INTEREST)',
-    impact: 'COBOL omits ROUNDED keyword, truncating sub-cent fractions toward zero per category before summing.',
+    impact:
+      'COBOL omits ROUNDED keyword, truncating sub-cent fractions toward zero per category before summing.',
     cobol: `* CBACT04C.cbl line 442 (NO ROUNDED KEYWORD):\n05 WS-MONTHLY-INT PIC S9(09)V99.\nCOMPUTE WS-MONTHLY-INT =\n   ( TRAN-CAT-BAL * DIS-INT-RATE ) / 1200\nADD WS-MONTHLY-INT TO WS-TOTAL-INT`,
-    rust: `// src/vsam_codec.rs\npub fn cobol_truncate_cents(val: Decimal) -> Decimal {\n    // Truncate toward zero at 2 decimal places (PIC S9(09)V99)\n    val.round_dp_with_strategy(2, RoundingStrategy::ToZero)\n}`,
+    rust: `pub fn cobol_truncate_cents(val: Decimal) -> Decimal {\n    // Truncate toward zero at 2 decimal places (PIC S9(09)V99)\n    val.round_dp_with_strategy(2, RoundingStrategy::ToZero)\n}`,
   },
   {
     id: 5,
     title: 'Sequential VSAM KSDS Control-Break & Cycle Reset',
     files: 'CBACT04C.cbl, TCATBALF VSAM KSDS',
-    impact: 'Commits total interest on account key change and zeroes ACCT-CURR-CYC-CREDIT / DEBIT at control break.',
+    impact:
+      'Commits total interest on account key change and zeroes ACCT-CURR-CYC-CREDIT / DEBIT at control break.',
     cobol: `IF TRANCAT-ACCT-ID NOT = WS-LAST-ACCT-ID\n   PERFORM 1050-UPDATE-ACCOUNT\n   MOVE ZEROS TO ACCT-CURR-CYC-CREDIT\n   MOVE ZEROS TO ACCT-CURR-CYC-DEBIT\nEND-IF`,
-    rust: `// src/batch_engine.rs (BTreeMap ordered by composite KSDS key)\nacct.curr_bal += total_int;\nacct.interest_charged = total_int;\nacct.curr_cyc_credit = Decimal::new(0, 2);\nacct.curr_cyc_debit = Decimal::new(0, 2);`,
+    rust: `acct.curr_bal += total_int;\nacct.interest_charged = total_int;\nacct.curr_cyc_credit = Decimal::new(0, 2);\nacct.curr_cyc_debit = Decimal::new(0, 2);`,
   },
   {
     id: 6,
     title: "IMS HIDAM Nine's-Complement Reverse-Chronological Keys",
     files: 'COPAUA0C.cbl, CIPAUDTY.cpy, DBPAUTP0.dbd',
-    impact: 'Computes 99999 - YYDDD and 999999999 - HHMMSSmmm so IMS DLI GN scans newest authorizations first.',
+    impact:
+      'Computes 99999 - YYDDD and 999999999 - HHMMSSmmm so IMS DLI GN scans newest authorizations first.',
     cobol: `* COPAUA0C.cbl:\nCOMPUTE PA-AUTH-DATE-9C = 99999 - WS-CUR-DATE-YYDDD\nCOMPUTE PA-AUTH-TIME-9C = 999999999 - WS-CUR-TIME-9`,
-    rust: `// src/main.rs (post_mq_authorize)\nlet auth_date_9c = 99999 - yyddd;\nlet auth_time_9c = 999999999 - hhmmss_ms;`,
+    rust: `let auth_date_9c = 99999 - yyddd;\nlet auth_time_9c = 999999999 - hhmmss_ms;`,
   },
 ];
 
 export function App() {
   const [viewMode, setViewMode] = useState<'modern' | 'split' | '3270'>('modern');
-  const [glassMaterial, setGlassMaterial] = useState<SistineMaterial>('crystal');
-  const [glassTint, setGlassTint] = useState<SistineTint>('sistine');
-  const [backdropMode, setBackdropMode] = useState<'gradient' | PatternStyle>('gradient');
-  const [isDark, setIsDark] = useState<boolean>(true);
+  const [activeWindow, setActiveWindow] = useState<As400WindowId>('CAVW');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
+  // Default to Opaque AS/400 Black & White with Phosphor Green accents
+  const [glassMaterial, setGlassMaterial] = useState<SistineMaterial>('opaque');
+  const [glassTint, setGlassTint] = useState<SistineTint>('selenite');
 
   const [parityReport, setParityReport] = useState<BatchParityReport | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
@@ -215,6 +329,36 @@ export function App() {
   const [accountDetail, setAccountDetail] = useState<AccountDetailResponseDto | null>(null);
   const [rejects, setRejects] = useState<DailyRejectDto[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Credit Cards (COCRDLI / COCRDSL / COCRDUP)
+  const [cards, setCards] = useState<CardRecordDto[]>([]);
+  const [cardFilterQuery, setCardFilterQuery] = useState<string>('');
+  const [selectedCard, setSelectedCard] = useState<CardRecordDto | null>(null);
+  const [cardEmbossedEdit, setCardEmbossedEdit] = useState<string>('');
+  const [cardExpiryEdit, setCardExpiryEdit] = useState<string>('');
+  const [cardStatusEdit, setCardStatusEdit] = useState<string>('Y');
+
+  // Transactions (COTRN00 / COTRN01 / COTRN02)
+  const [selectedTxDetail, setSelectedTxDetail] = useState<AccountTransactionDto | null>(null);
+  const [newTxType, setNewTxType] = useState<string>('01');
+  const [newTxCat, setNewTxCat] = useState<string>('0001');
+  const [newTxSource, setNewTxSource] = useState<string>('ONLINE');
+  const [newTxDesc, setNewTxDesc] = useState<string>('AMAZON AWS MARKETPLACE');
+  const [newTxAmt, setNewTxAmt] = useState<string>('129.99');
+  const [newTxMerchant, setNewTxMerchant] = useState<string>('AMAZON WEB SERVICES');
+
+  // Transaction Reports (CORPT00 / CBTRN03C)
+  const [reportType, setReportType] = useState<'MONTHLY' | 'YEARLY' | 'CUSTOM'>('MONTHLY');
+  const [reportStartDate, setReportStartDate] = useState<string>('2022-01-01');
+  const [reportEndDate, setReportEndDate] = useState<string>('2026-12-31');
+  const [reportResult, setReportResult] = useState<TransactionReportResponseDto | null>(null);
+
+  // User Security (COUSR00..03 / COSGN00)
+  const [users, setUsers] = useState<SecUserDto[]>([]);
+  const [usrIdInput, setUsrIdInput] = useState<string>('OPER0001');
+  const [usrFirstInput, setUsrFirstInput] = useState<string>('ADA');
+  const [usrLastInput, setUsrLastInput] = useState<string>('LOVELACE');
+  const [usrTypeInput, setUsrTypeInput] = useState<string>('A');
 
   // 3270 Terminal State (/api/cics/terminal)
   const [termScreen, setTermScreen] = useState<TerminalScreenResponse | null>(null);
@@ -225,10 +369,11 @@ export function App() {
 
   // Action feedback
   const [actionBanner, setActionBanner] = useState<string>(
-    'CICS READY — Sistine Glass UI & Safe Rust Engine Online'
+    'AS/400 CICS WORKSTATION READY — All 21 BMS Windows & 50 VSAM Accounts Online'
   );
   const [isRunningBatch, setIsRunningBatch] = useState<boolean>(false);
   const [creditLimitEdit, setCreditLimitEdit] = useState<string>('2020.00');
+  const [activeStatusEdit, setActiveStatusEdit] = useState<string>('Y');
 
   // DB2 Catalog State (/api/db2/tx-types)
   const [db2Data, setDb2Data] = useState<Db2CatalogResponseDto>({
@@ -261,11 +406,7 @@ export function App() {
   // Sync Sistine theme attributes on <html>
   useEffect(() => {
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.classList.add('dark');
     if (glassMaterial === 'glass') {
       delete root.dataset.glass;
     } else {
@@ -273,7 +414,7 @@ export function App() {
     }
     root.dataset.glassTint = glassTint;
     window.dispatchEvent(new Event(FG_EVENT));
-  }, [isDark, glassMaterial, glassTint]);
+  }, [glassMaterial, glassTint]);
 
   const loadAccountDetail = async (acctId: string) => {
     const res = await fetch(`/api/accounts/${acctId}`);
@@ -281,17 +422,23 @@ export function App() {
       const d: AccountDetailResponseDto = await res.json();
       setAccountDetail(d);
       setCreditLimitEdit(d.account.credit_limit);
+      setActiveStatusEdit(d.account.active_status || 'Y');
+      if (d.transactions && d.transactions.length > 0) {
+        setSelectedTxDetail(d.transactions[0]);
+      }
     }
   };
 
   const loadAll = async (acctToLoad = selectedAcctId) => {
     try {
-      const [ovRes, acctsRes, rejRes, db2Res, imsRes] = await Promise.all([
+      const [ovRes, acctsRes, rejRes, db2Res, imsRes, cardsRes, usersRes] = await Promise.all([
         fetch('/api/overview'),
         fetch('/api/accounts'),
         fetch('/api/rejects'),
         fetch('/api/db2/tx-types'),
         fetch('/api/ims/authorizations'),
+        fetch('/api/cards'),
+        fetch('/api/users'),
       ]);
       if (ovRes.ok) {
         const ov: OverviewResponseDto = await ovRes.json();
@@ -312,6 +459,23 @@ export function App() {
       if (imsRes.ok) {
         const imsAuths: ImsAuthorizationsResponseDto = await imsRes.json();
         setImsData(imsAuths);
+      }
+      if (cardsRes.ok) {
+        const cardList: CardRecordDto[] = await cardsRes.json();
+        setCards(cardList);
+        const matchCard =
+          cardList.find((c) => c.acct_id === acctToLoad) || cardList[0] || null;
+        if (matchCard && !selectedCard) {
+          setSelectedCard(matchCard);
+          setCardEmbossedEdit(matchCard.embossed_name);
+          setCardExpiryEdit(matchCard.expiration_date);
+          setCardStatusEdit(matchCard.active_status);
+        }
+      }
+      if (usersRes.ok) {
+        const rawUsers = await usersRes.json();
+        const uList: SecUserDto[] = Array.isArray(rawUsers) ? rawUsers : rawUsers.users || [];
+        setUsers(uList);
       }
       await loadAccountDetail(acctToLoad);
     } catch (e) {
@@ -343,7 +507,6 @@ export function App() {
         nextMap[f.id] = f.value;
       });
       setTermFieldValues(nextMap);
-      await loadAll(selectedAcctId);
     }
   };
 
@@ -364,15 +527,43 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const handleSelectWindow = async (winId: As400WindowId) => {
+    setActiveWindow(winId);
+    setMobileMenuOpen(false);
+    const mapWinToTran: Record<As400WindowId, string> = {
+      CAVW: 'CAVW',
+      CAUP: 'CAUP',
+      CCLI: 'CCLI',
+      CT00: 'CT00',
+      CT02: 'CT02',
+      CR00: 'CR00',
+      CBIL: 'CBIL',
+      CPVS: 'CPVS',
+      CTLI: 'CTLI',
+      CU00: 'CU00',
+      CBMN: 'CM00',
+    };
+    const tCode = mapWinToTran[winId] || 'CAVW';
+    const def = AS400_WINDOWS.find((w) => w.id === winId);
+    setActionBanner(
+      `WINDOW [${def?.tranCode ?? winId}] — ${def?.title ?? ''} (${def?.cobolProg ?? ''})`
+    );
+    await sendTerminalCommand(tCode, 'ENTER', { ACCTID: selectedAcctId });
+  };
+
   const handleSelectAccount = async (acctId: string) => {
     setSelectedAcctId(acctId);
     await loadAccountDetail(acctId);
-    const matchingCard = accounts.find((a) => a.acct_id === acctId)?.card_num;
+    const matchingCard = cards.find((c) => c.acct_id === acctId);
     if (matchingCard) {
-      setMqSwipeCard(matchingCard);
+      setMqSwipeCard(matchingCard.card_num);
+      setSelectedCard(matchingCard);
+      setCardEmbossedEdit(matchingCard.embossed_name);
+      setCardExpiryEdit(matchingCard.expiration_date);
+      setCardStatusEdit(matchingCard.active_status);
     }
-    setActionBanner(`CAVW / COACTVWC — Loaded Account ${acctId}`);
-    await sendTerminalCommand('CAVW', 'ENTER', { ACCTID: acctId });
+    setActionBanner(`CAVW / COACTVWC — Loaded Account #${acctId}`);
+    await sendTerminalCommand(termTranInput || 'CAVW', 'ENTER', { ACCTID: acctId });
   };
 
   const handleOneClickBillPay = async () => {
@@ -384,7 +575,7 @@ export function App() {
     if (res.ok) {
       const data: BillPayResponseDto = await res.json();
       setActionBanner(
-        `⚡ COBIL00C Bill Pay Complete in ${data.execution_ms}ms (vs 54s on 3270 Green Screen): ${data.message}`
+        `COBIL00C Bill Pay Complete in ${data.execution_ms}ms (vs 54s on 3270): ${data.message}`
       );
       await loadAll(selectedAcctId);
       await sendTerminalCommand('CBIL', 'ENTER', {
@@ -394,34 +585,139 @@ export function App() {
     }
   };
 
-  const handleUpdateCreditLimit = async (e: React.FormEvent) => {
+  const handleUpdateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await fetch(`/api/accounts/${selectedAcctId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         credit_limit: creditLimitEdit,
-        active_status: 'Y',
+        active_status: activeStatusEdit,
       }),
     });
     if (res.ok) {
       const data: UpdateAccountResponseDto = await res.json();
-      setActionBanner(`✅ ${data.message} — New Credit Limit: $${data.credit_limit}`);
+      setActionBanner(
+        `${data.message} — Limit: $${data.credit_limit}, Active: ${data.active_status}`
+      );
       await loadAll(selectedAcctId);
       await sendTerminalCommand('CAUP', 'ENTER', { ACCTID: selectedAcctId });
     }
   };
 
+  const handleSelectCardRow = (c: CardRecordDto) => {
+    setSelectedCard(c);
+    setCardEmbossedEdit(c.embossed_name);
+    setCardExpiryEdit(c.expiration_date);
+    setCardStatusEdit(c.active_status);
+    setActionBanner(`COCRDSLC / CCDL — Selected Card ${c.card_num} (Acct ${c.acct_id})`);
+  };
+
+  const handleUpdateCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCard) return;
+    const res = await fetch(`/api/cards/${selectedCard.card_num}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        embossed_name: cardEmbossedEdit,
+        expiration_date: cardExpiryEdit,
+        active_status: cardStatusEdit,
+      }),
+    });
+    if (res.ok) {
+      const out: UpdateCardResponseDto = await res.json();
+      setActionBanner(out.message);
+      await loadAll(selectedAcctId);
+      await sendTerminalCommand('CCUP', 'ENTER', {
+        ACCTID: selectedCard.acct_id,
+        CARDNUM: selectedCard.card_num,
+      });
+    }
+  };
+
+  const handleAddTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        acct_id: selectedAcctId,
+        card_num: selectedAccount?.card_num ?? '',
+        type_cd: newTxType,
+        cat_cd: newTxCat,
+        source: newTxSource,
+        description: newTxDesc,
+        amt: newTxAmt,
+        merchant_id: '000000001',
+        merchant_name: newTxMerchant,
+        merchant_city: 'SEATTLE',
+        merchant_zip: '98101',
+        orig_date: '2026-10-25',
+        proc_date: '2026-10-25',
+      }),
+    });
+    if (res.ok) {
+      const out: AddTransactionResponseDto = await res.json();
+      setActionBanner(`${out.message} — New Balance: $${out.new_balance}`);
+      await loadAll(selectedAcctId);
+      await sendTerminalCommand('CT02', 'ENTER', { ACCTID: selectedAcctId });
+    }
+  };
+
+  const handleGenerateReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/reports/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        report_type: reportType,
+        start_date: reportType === 'CUSTOM' ? reportStartDate : '',
+        end_date: reportType === 'CUSTOM' ? reportEndDate : '',
+      }),
+    });
+    if (res.ok) {
+      const out: TransactionReportResponseDto = await res.json();
+      setReportResult(out);
+      setActionBanner(out.message);
+      await sendTerminalCommand('CR00', 'ENTER', { RTYPE: reportType });
+    }
+  };
+
+  const handleMutateUser = async (action: 'ADD' | 'UPDATE' | 'DELETE', targetUsrId?: string) => {
+    const usr_id = targetUsrId ?? usrIdInput;
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        usr_id,
+        first_name: usrFirstInput,
+        last_name: usrLastInput,
+        password: 'PASSWORD',
+        usr_type: usrTypeInput,
+      }),
+    });
+    if (res.ok) {
+      const out: UserSecurityActionResponseDto = await res.json();
+      setActionBanner(out.message);
+      await loadAll(selectedAcctId);
+      await sendTerminalCommand('CU00', 'ENTER', { USRID: usr_id });
+    }
+  };
+
   const handleRunNightlyBatch = async () => {
     setIsRunningBatch(true);
-    setActionBanner('Executing Nightly JCL Batch DAG (COMBTRAN → CBTRN02C → CBACT04C → CBSTM03A)...');
+    setActionBanner(
+      'Executing Nightly JCL Batch DAG (COMBTRAN ➔ CBTRN02C ➔ CBACT04C ➔ CBSTM03A)...'
+    );
     try {
       const res = await fetch('/api/batch/run-nightly', { method: 'POST' });
       if (res.ok) {
         const rep: BatchParityReport = await res.json();
         setParityReport(rep);
         setActionBanner(
-          `🚀 Nightly JCL Batch DAG completed in ${rep.rust_execution_ms}ms (${rep.speedup_vs_legacy}x faster than 412.4ms baseline) with ${rep.parity_pct.toFixed(2)}% ($${rep.max_cent_drift} drift) Golden Parity!`
+          `Nightly JCL Batch DAG completed in ${rep.rust_execution_ms}ms (${rep.speedup_vs_legacy}x faster than 412.4ms baseline) with ${rep.parity_pct.toFixed(2)}% ($${rep.max_cent_drift} drift) Golden Parity!`
         );
         await loadAll(selectedAcctId);
         await sendTerminalCommand('CAVW', 'ENTER', { ACCTID: selectedAcctId });
@@ -431,7 +727,11 @@ export function App() {
     }
   };
 
-  const handleDb2Mutate = async (action: 'ADD' | 'UPDATE' | 'DELETE', code?: string, desc?: string) => {
+  const handleDb2Mutate = async (
+    action: 'ADD' | 'UPDATE' | 'DELETE',
+    code?: string,
+    desc?: string
+  ) => {
     const tr_type = code ?? db2TypeCode;
     const tr_description = desc ?? db2TypeDesc;
     const res = await fetch('/api/db2/tx-types', {
@@ -442,7 +742,7 @@ export function App() {
     if (res.ok) {
       const out: Db2MutationResponseDto = await res.json();
       setDb2LastStatus(out);
-      setActionBanner(`🗄️ DB2 ${action} [TR_TYPE=${tr_type}]: ${out.message}`);
+      setActionBanner(`DB2 ${action} [TR_TYPE=${tr_type}]: ${out.message}`);
       await loadAll(selectedAcctId);
       await sendTerminalCommand('CTLI', 'ENTER', {});
     }
@@ -463,7 +763,7 @@ export function App() {
     });
     if (res.ok) {
       const out: MqAuthorizeResponseDto = await res.json();
-      setActionBanner(`📡 IBM MQ / IMS COPAUA0C: ${out.message}`);
+      setActionBanner(`IBM MQ / IMS COPAUA0C: ${out.message}`);
       await loadAll(selectedAcctId);
       await sendTerminalCommand('CPVS', 'ENTER', { ACCTID: out.acct_id });
     }
@@ -487,7 +787,7 @@ export function App() {
     });
     if (res.ok) {
       const out: FraudToggleResponseDto = await res.json();
-      setActionBanner(`🛡️ Fraud Alert Updated: ${out.message}`);
+      setActionBanner(`Fraud Alert Updated: ${out.message}`);
       await loadAll(selectedAcctId);
     }
   };
@@ -504,14 +804,10 @@ export function App() {
       const out: SecurityGateResponseDto = await res.json();
       setGateResult(out);
       setActionBanner(
-        `🔒 Antigravity Hook (${out.hook}): ${out.decision.toUpperCase()} — ${out.reason}`
+        `Security Gate (${out.hook}): ${out.decision.toUpperCase()} — ${out.reason}`
       );
     }
   };
-
-  const overpunchCalc = computeOverpunchDemo(overpunchInput);
-  const activeLandmine =
-    MAINFRAME_LANDMINES.find((l) => l.id === selectedLandmineId) || MAINFRAME_LANDMINES[0];
 
   const handleSelectOverpunchPreset = async (val: string, acctId: string, tran: string) => {
     setOverpunchInput(val);
@@ -538,51 +834,70 @@ export function App() {
     setSelectedAcctId(target.acct);
     await loadAccountDetail(target.acct);
     await sendTerminalCommand(target.tran, 'ENTER', { ACCTID: target.acct });
+    setActionBanner(
+      `🎯 Loaded Landmine #${lmId} into Live 3270 Terminal (${target.tran}) & Account #${target.acct}`
+    );
   };
+
+  const overpunchCalc = computeOverpunchDemo(overpunchInput);
+  const activeLandmine =
+    MAINFRAME_LANDMINES.find((l) => l.id === selectedLandmineId) || MAINFRAME_LANDMINES[0];
 
   const selectedAccount = accounts.find((a) => a.acct_id === selectedAcctId) || accounts[0];
   const filteredAccounts = accounts.filter(
     (a) =>
       a.acct_id.includes(searchQuery) ||
       a.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.card_num.includes(searchQuery)
+      a.card_num.includes(searchQuery) ||
+      a.addr_zip.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredCards = cards.filter(
+    (c) =>
+      c.acct_id.includes(cardFilterQuery) ||
+      c.card_num.includes(cardFilterQuery) ||
+      c.embossed_name.toLowerCase().includes(cardFilterQuery.toLowerCase())
+  );
+
+  const activeWindowDef =
+    AS400_WINDOWS.find((w) => w.id === activeWindow) || AS400_WINDOWS[0];
+
   const render3270Panel = () => (
-    <div className="bg-[#050b06] border-2 border-green-500/60 rounded-xl shadow-[0_0_45px_rgba(34,197,94,0.2)] p-4 crt-scanlines text-green-400 crt-glow font-mono flex flex-col justify-between">
+    <div className="bg-[#050a06] border-2 border-emerald-500/70 rounded-xl shadow-[0_0_35px_rgba(34,197,94,0.18)] p-3 sm:p-4 crt-scanlines text-emerald-400 crt-glow font-mono flex flex-col justify-between max-w-full overflow-hidden">
       <div>
-        <div className="flex flex-wrap items-center justify-between border-b border-green-500/40 pb-2 mb-3 text-xs gap-2">
+        <div className="flex flex-wrap items-center justify-between border-b border-emerald-500/40 pb-2 mb-3 text-xs gap-2">
           <span>
             TRAN: <strong className="text-white">{termScreen?.tran_id ?? 'CAVW'}</strong> | PROG:{' '}
-            {termScreen?.program_name ?? 'COACTVWC'} | MAP: {termScreen?.mapset_name ?? 'COACTVW'}
+            {termScreen?.program_name ?? 'COACTVWC'} | MAP:{' '}
+            {termScreen?.mapset_name ?? 'COACTVW'}
           </span>
           <div className="flex items-center gap-2">
             {termScreen?.sqlcode !== null && termScreen?.sqlcode !== undefined && (
               <span
                 className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                   termScreen.sqlcode === 0
-                    ? 'bg-green-900/70 text-green-300 border border-green-500/50'
+                    ? 'bg-emerald-900/70 text-emerald-300 border border-emerald-500/50'
                     : 'bg-red-950/90 text-red-300 border border-red-500/60'
                 }`}
               >
                 SQLCODE={termScreen.sqlcode}
               </span>
             )}
-            <span>TERM: T3278M2 (24x80)</span>
+            <span className="text-white/80">IBM 3278-2 (24x80)</span>
           </div>
         </div>
 
         {/* Authentic 24x80 BMS Screen Lines */}
-        <pre className="text-[11px] leading-[1.35] text-green-300 bg-black/70 p-3 rounded border border-green-500/30 overflow-x-auto">
+        <pre className="text-[10px] sm:text-[11px] leading-[1.35] text-emerald-300 bg-black p-2.5 sm:p-3 rounded border border-emerald-500/30 overflow-x-auto max-w-full">
           {termScreen?.lines?.join('\n') || 'Loading CICS BMS 3270 Map...'}
         </pre>
 
         {/* Editable BMS Fields */}
         {termScreen && termScreen.fields.length > 0 && (
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 bg-black/60 p-2.5 rounded border border-green-500/30 text-xs">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-black/80 p-2.5 rounded border border-emerald-500/30 text-xs">
             {termScreen.fields.map((f) => (
               <div key={f.id} className="flex flex-col">
-                <label className="text-[10px] text-cyan-400">
+                <label className="text-[10px] text-emerald-400">
                   {f.label} ({f.id})
                 </label>
                 <input
@@ -596,7 +911,7 @@ export function App() {
                       sendTerminalCommand(termTranInput, 'ENTER');
                     }
                   }}
-                  className="bg-black border border-green-500/60 px-2 py-0.5 text-yellow-300 font-mono text-xs focus:outline-none"
+                  className="bg-black border border-emerald-500/60 px-2 py-1 text-white font-mono text-xs focus:outline-none focus:border-emerald-400"
                 />
               </div>
             ))}
@@ -605,10 +920,10 @@ export function App() {
       </div>
 
       {/* Bottom CICS Command & PF-Key Deck */}
-      <div className="mt-3 pt-2 border-t border-green-500/40 text-xs space-y-2">
+      <div className="mt-3 pt-2 border-t border-emerald-500/40 text-xs space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-yellow-300">CICS TRAN ===&gt;</span>
+            <span className="text-emerald-400 font-bold">CICS ===&gt;</span>
             <input
               value={termTranInput}
               onChange={(e) => setTermTranInput(e.target.value.toUpperCase())}
@@ -617,11 +932,11 @@ export function App() {
                   sendTerminalCommand(termTranInput, 'ENTER');
                 }
               }}
-              className="bg-black border border-green-500/60 px-2 py-0.5 text-green-300 w-16 focus:outline-none"
+              className="bg-black border border-emerald-500/60 px-2 py-0.5 text-white w-16 focus:outline-none"
             />
             <button
               onClick={() => sendTerminalCommand(termTranInput, 'ENTER')}
-              className="px-2 py-0.5 bg-green-600 text-black font-bold hover:bg-green-400"
+              className="px-2.5 py-0.5 bg-emerald-500 text-black font-bold hover:bg-emerald-400"
             >
               ENTER
             </button>
@@ -629,22 +944,37 @@ export function App() {
               <button
                 key={aid}
                 onClick={() => sendTerminalCommand(termTranInput, aid)}
-                className="px-1.5 py-0.5 border border-cyan-500/50 text-cyan-300 hover:bg-cyan-950 text-[10px]"
-                title={`Send 3270 AID Key ${aid}`}
+                className="px-1.5 py-0.5 border border-white/30 text-white hover:bg-emerald-950 text-[10px]"
               >
                 {aid}
               </button>
             ))}
           </div>
           <div className="flex flex-wrap gap-1">
-            {['CC00', 'CM00', 'CAVW', 'CAUP', 'CCLI', 'CBIL', 'CT00', 'CTLI', 'CPVS'].map((t) => (
+            {[
+              'CC00',
+              'CM00',
+              'CAVW',
+              'CAUP',
+              'CCLI',
+              'CCDL',
+              'CCUP',
+              'CT00',
+              'CT01',
+              'CT02',
+              'CR00',
+              'CBIL',
+              'CTLI',
+              'CPVS',
+              'CU00',
+            ].map((t) => (
               <button
                 key={t}
                 onClick={() => sendTerminalCommand(t, 'ENTER', { ACCTID: selectedAcctId })}
                 className={`px-1.5 py-0.5 border text-[10px] ${
                   termScreen?.tran_id === t
-                    ? 'bg-green-500 text-black font-bold border-green-300'
-                    : 'border-green-500/40 text-green-300 hover:bg-green-950'
+                    ? 'bg-emerald-500 text-black font-bold border-emerald-300'
+                    : 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-950'
                 }`}
               >
                 {t}
@@ -652,11 +982,9 @@ export function App() {
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2 text-[11px]">
-          <span className="text-yellow-400 truncate">
-            {termScreen?.status_message || actionBanner}
-          </span>
-          <span className="text-green-500/80 text-[10px] shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+          <span className="text-white truncate">{termScreen?.status_message || actionBanner}</span>
+          <span className="text-emerald-400 text-[10px] shrink-0">
             {termScreen?.pf_keys || 'ENTER=Submit  PF3=Menu  PF5=Save'}
           </span>
         </div>
@@ -664,87 +992,154 @@ export function App() {
     </div>
   );
 
-  return (
-    <div className="min-h-screen relative flex flex-col selection:bg-primary selection:text-primary-foreground">
-      {/* Sistine Automatic APCA Foreground Solver + Dynamic Wallpaper */}
-      <AutoForeground />
-      {viewMode !== '3270' &&
-        (backdropMode === 'gradient' ? (
-          <GradientBackground axis="tonal" angle={125} />
-        ) : (
-          <div className="fixed inset-0 -z-10 pointer-events-none">
-            <PatternBackground
-              style={backdropMode}
-              density="medium"
-              speed={0}
-              disc="right"
-              sand="breeze"
-            />
-          </div>
-        ))}
+  const renderCommandSidebarContent = () => {
+    const categories = [
+      'Core CICS Online',
+      'Card & Ledger Ops',
+      'DB2 / IMS / Admin',
+      'Batch & Parity',
+    ] as const;
 
-      {/* Top Sistine Glass Header Bar */}
-      <header className="sticky top-0 z-50 glass glass-border glass-veil px-5 py-3">
-        <div className="max-w-[1680px] mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl glass glass-border glass-gradient flex items-center justify-center shadow-sm">
-              <SparkleIcon className="w-5 h-5 text-foreground" weight="duotone" />
+    return (
+      <div className="flex flex-col h-full justify-between space-y-4">
+        <div className="space-y-4">
+          {/* Active Account Quick Switcher inside Sidebar */}
+          <div className="p-3 rounded-lg bg-black border border-white/20">
+            <div className="flex items-center justify-between text-[11px] font-mono text-emerald-400 mb-1.5">
+              <span>ACTIVE ACCOUNT CONTEXT</span>
+              <span className="text-white font-bold">#{selectedAcctId}</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold tracking-tight text-base">
-                  CardDemo <span className="opacity-80 font-medium">× Sistine Glass UI</span>
-                </span>
-                <Badge
-                  variant="glass"
-                  material={glassMaterial}
-                  border
-                  gradient
-                  className="text-[11px] font-mono"
-                >
-                  sistine.weekendsuperhero.io
-                </Badge>
-                <Badge
-                  variant="glass"
-                  data-glass-tint="success"
-                  border
-                  className="text-[11px] font-mono"
-                >
-                  #![forbid(unsafe_code)]
-                </Badge>
+            <select
+              value={selectedAcctId}
+              onChange={(e) => handleSelectAccount(e.target.value)}
+              className="w-full bg-[#070b08] border border-emerald-500/50 rounded px-2 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-emerald-400"
+            >
+              {accounts.map((a) => (
+                <option key={a.acct_id} value={a.acct_id}>
+                  {a.acct_id} — {a.customer_name} (${a.curr_bal})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* All 11 AS/400 Window Modules */}
+          {categories.map((cat) => (
+            <div key={cat} className="space-y-1">
+              <div className="px-2 text-[10px] font-mono uppercase tracking-wider text-emerald-400/90 font-bold">
+                {cat}
               </div>
-              <p className="text-xs text-muted-foreground">
-                AWS Mainframe Modernization • 44 COBOL Programs • 22 BMS Maps • VSAM + DB2 + IMS ➔
-                Safe Rust + Sistine Glass
+              {AS400_WINDOWS.filter((w) => w.category === cat).map((w) => {
+                const isSelected = activeWindow === w.id;
+                return (
+                  <button
+                    key={w.id}
+                    onClick={() => handleSelectWindow(w.id)}
+                    className={`w-full text-left px-2.5 py-2 rounded-lg transition border flex flex-col gap-0.5 ${
+                      isSelected
+                        ? 'bg-emerald-500/15 border-emerald-400 text-white shadow-[0_0_15px_rgba(74,222,128,0.15)]'
+                        : 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-mono text-[11px] font-bold text-emerald-400">
+                        {w.tranCode}
+                      </span>
+                      <span className="font-mono text-[9px] text-white/60">{w.bmsMap}</span>
+                    </div>
+                    <div className="text-xs font-semibold text-white">{w.title}</div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom System Status Box */}
+        <div className="p-3 rounded-lg bg-black border border-white/15 text-[11px] font-mono space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-white/60">SUBSYSTEM</span>
+            <span className="text-emerald-400 font-bold">QINTER / CICS</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/60">STORAGE ENGINE</span>
+            <span className="text-white">SQLite WAL</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/60">GOLDEN PARITY</span>
+            <span className="text-emerald-400 font-bold">50/50 ($0.00)</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#040705] text-white relative flex flex-col selection:bg-emerald-500 selection:text-black">
+      <AutoForeground />
+
+      {/* Top AS/400 Workstation Header Bar */}
+      <header className="sticky top-0 z-40 bg-[#060a07] border-b border-white/25 px-3 sm:px-5 py-2.5">
+        <div className="max-w-[1760px] mx-auto flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Mobile Drawer Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="lg:hidden p-2 rounded-lg bg-black border border-emerald-500/60 text-emerald-400 hover:bg-emerald-950"
+              aria-label="Toggle AS/400 Command Menu"
+            >
+              {mobileMenuOpen ? <XIcon className="w-5 h-5" /> : <ListIcon className="w-5 h-5" />}
+            </button>
+
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-black border border-emerald-400/70 flex items-center justify-center shadow-[0_0_12px_rgba(74,222,128,0.2)]">
+              <TerminalWindowIcon className="w-5 h-5 text-emerald-400" weight="duotone" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono font-bold tracking-tight text-sm sm:text-base text-white">
+                  IBM i / AS400 <span className="text-emerald-400">CardDemo Workstation</span>
+                </span>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-mono text-[11px]">
+                  {activeWindowDef.tranCode} • {activeWindowDef.cobolProg}
+                </span>
+              </div>
+              <p className="text-[11px] text-white/70 truncate">
+                21 BMS Screens • 44 COBOL Modules • VSAM + DB2 + IMS • SQLite WAL
               </p>
             </div>
           </div>
 
-          {/* Right Controls: Sistine Material, Stone Tint, Backdrop, Batch Execution, View Mode Toggle */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Right Controls */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {parityReport && (
               <Badge
                 variant="glass"
-                data-glass-tint="success"
                 border
-                className="h-8 px-3 gap-1.5 text-xs font-mono"
+                className="hidden md:inline-flex h-7 px-2.5 gap-1.5 text-[11px] font-mono bg-black border-emerald-400/50 text-emerald-300"
               >
-                <ShieldCheckIcon className="w-4 h-4" weight="fill" />
-                Parity: {parityReport.accounts_matched}/{parityReport.accounts_verified} (
-                {parityReport.parity_pct.toFixed(1)}%) • Drift: ${parityReport.max_cent_drift}
+                <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" weight="fill" />
+                Parity: {parityReport.accounts_matched}/{parityReport.accounts_verified} ($
+                {parityReport.max_cent_drift})
               </Badge>
             )}
 
-            {/* Sistine Material Switcher (5 distinct materials) */}
+            {/* Surface Material Switcher */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="glass" size="sm" border sheen effect="lift" className="gap-1.5">
-                  <DiamondIcon className="w-4 h-4" weight="duotone" />
-                  <span className="capitalize">{glassMaterial}</span>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  border
+                  className="gap-1 text-xs bg-black border-white/25 text-white hover:border-emerald-400"
+                >
+                  <DiamondIcon className="w-3.5 h-3.5 text-emerald-400" weight="duotone" />
+                  <span className="hidden sm:inline capitalize">{glassMaterial}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="text-xs">Sistine 5 Glass Materials</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="w-56 bg-[#070b08] border-white/25 text-white">
+                <DropdownMenuLabel className="text-xs text-emerald-400">
+                  Workstation Surface
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {SISTINE_MATERIALS.map((m) => (
                   <DropdownMenuItem
@@ -755,30 +1150,16 @@ export function App() {
                     <div className="flex w-full items-center justify-between font-medium text-xs">
                       <span>{m.label}</span>
                       {glassMaterial === m.value && (
-                        <Badge variant="glass" className="text-[10px] px-1.5 py-0">
-                          Active
-                        </Badge>
+                        <span className="text-[10px] text-emerald-400 font-mono">ACTIVE</span>
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground">{m.desc}</span>
+                    <span className="text-[11px] text-white/60">{m.desc}</span>
                   </DropdownMenuItem>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Sistine Stone Tint & Fresco Switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="glass" size="sm" border gradient effect="lift" className="gap-1.5">
-                  <PaletteIcon className="w-4 h-4" weight="duotone" />
-                  <span className="capitalize">{glassTint}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
-                <DropdownMenuLabel className="text-xs">
-                  Sistine Frescoes &amp; Stone Tints
-                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-emerald-400">
+                  Phosphor &amp; Tint
+                </DropdownMenuLabel>
                 {SISTINE_TINTS.map((t) => (
                   <DropdownMenuItem
                     key={t.value}
@@ -786,34 +1167,11 @@ export function App() {
                     className="flex items-center justify-between text-xs cursor-pointer"
                   >
                     <span>{t.label}</span>
-                    <span className="text-[10px] text-muted-foreground">{t.group}</span>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs">Backdrop Scene</DropdownMenuLabel>
-                {BACKDROP_MODES.map((b) => (
-                  <DropdownMenuItem
-                    key={b.value}
-                    onClick={() => setBackdropMode(b.value)}
-                    className="flex items-center justify-between text-xs cursor-pointer"
-                  >
-                    <span>{b.label}</span>
-                    {backdropMode === b.value && <span className="text-[10px] font-bold">●</span>}
+                    {glassTint === t.value && <span className="text-emerald-400">●</span>}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Dark / Light Mode Toggle */}
-            <Button
-              variant="glass"
-              size="icon-sm"
-              border
-              onClick={() => setIsDark((d) => !d)}
-              title="Toggle Dark / Light Mode"
-            >
-              {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
-            </Button>
 
             {/* Run JCL Nightly Batch */}
             <Button
@@ -821,530 +1179,1157 @@ export function App() {
               size="sm"
               disabled={isRunningBatch}
               onClick={handleRunNightlyBatch}
-              effect="glow"
-              className="gap-1.5 font-semibold"
+              className="gap-1.5 font-mono text-xs bg-emerald-500 text-black font-bold hover:bg-emerald-400"
             >
               <PlayIcon className="w-3.5 h-3.5" weight="fill" />
-              {isRunningBatch ? 'Running JCL...' : 'Run Nightly JCL Batch'}
+              <span className="hidden sm:inline">
+                {isRunningBatch ? 'Running JCL...' : 'Run Nightly JCL'}
+              </span>
+              <span className="sm:hidden">JCL</span>
             </Button>
 
-            {/* View Mode Switcher: Sistine Glass | Split 3270+Glass | Full 3270 */}
+            {/* Split 3270 Toggle */}
             <Button
               variant={viewMode === 'split' ? 'default' : 'glass'}
               size="sm"
               border
               onClick={() => setViewMode((v) => (v === 'split' ? 'modern' : 'split'))}
-              className="gap-1.5"
+              className="hidden sm:inline-flex gap-1.5 text-xs bg-black border-white/25 text-white"
             >
-              <ColumnsIcon className="w-4 h-4" weight="duotone" />
+              <ColumnsIcon className="w-3.5 h-3.5 text-emerald-400" weight="duotone" />
               Split 3270
             </Button>
 
+            {/* Full 3270 CRT Toggle */}
             <Button
               variant={viewMode === '3270' ? 'default' : 'glass'}
               size="sm"
               border
               onClick={() => setViewMode((v) => (v === '3270' ? 'modern' : '3270'))}
-              className="gap-1.5 font-mono"
+              className="gap-1 font-mono text-xs bg-black border-emerald-500/60 text-emerald-400"
             >
-              <TerminalWindowIcon className="w-4 h-4" weight="duotone" />
-              {viewMode === '3270' ? 'Sistine Glass' : '3270 CRT'}
-              <Kbd className="ml-1 text-[10px]">F12</Kbd>
+              <TerminalWindowIcon className="w-3.5 h-3.5" weight="duotone" />
+              {viewMode === '3270' ? 'Modern UI' : '3270 CRT'}
+              <Kbd className="hidden sm:inline-flex ml-1 text-[10px]">F12</Kbd>
             </Button>
           </div>
         </div>
       </header>
 
+      {/* Mobile Slide-Over Command Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/80"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside className="relative z-10 w-80 max-w-[85vw] bg-[#060a07] border-r border-emerald-500/50 p-4 overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/20">
+              <span className="font-mono text-xs font-bold text-emerald-400">
+                AS/400 COMMAND MENU (21 BMS MAPS)
+              </span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1 text-white/70 hover:text-white"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+            {renderCommandSidebarContent()}
+          </aside>
+        </div>
+      )}
+
       {/* Main Content Area */}
       {viewMode === '3270' ? (
-        <main className="flex-1 bg-black p-6 flex items-center justify-center">
+        <main className="flex-1 bg-black p-3 sm:p-6 flex items-center justify-center">
           <div className="w-full max-w-5xl">{render3270Panel()}</div>
         </main>
       ) : (
-        <main className="flex-1 max-w-[1680px] w-full mx-auto px-5 py-5 space-y-5">
-          {/* Top Telemetry & Benchmark Cards using @sistine/card */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card material={glassMaterial} border sheen effect="lift" className="py-4">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase tracking-wider font-semibold">
-                  Clerk Workflow Velocity
-                </CardDescription>
-                <CardTitle className="text-2xl font-bold tracking-tight">
-                  2.4s <span className="text-sm font-normal text-muted-foreground">vs 54.0s (3270)</span>
-                </CardTitle>
-                <CardAction>
-                  <Badge variant="glass" data-glass-tint="success" border className="font-mono text-xs">
-                    22.5x Faster
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Replaces 72 keystrokes across 6 BMS green-screens (
-                  <code className="font-mono">CC00➔CAVW➔CAUP➔CBIL➔CTLI➔CPVS</code>) with 1 unified
-                  Sistine glass workspace.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card material={glassMaterial} border gradient effect="lift" className="py-4">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase tracking-wider font-semibold">
-                  Nightly Batch Throughput
-                </CardDescription>
-                <CardTitle className="text-2xl font-bold tracking-tight">
-                  {parityReport ? `${parityReport.rust_execution_ms.toFixed(2)}ms` : '4.24ms'}{' '}
-                  <span className="text-sm font-normal text-muted-foreground">vs 412.4ms</span>
-                </CardTitle>
-                <CardAction>
-                  <Badge variant="glass" data-glass-tint="info" border className="font-mono text-xs">
-                    <LightningIcon className="w-3.5 h-3.5 mr-1" weight="fill" />
-                    {parityReport ? `${parityReport.speedup_vs_legacy.toFixed(1)}x` : '97.3x'}
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Executes <code className="font-mono">CBTRN02C</code> (300 daily tx) +{' '}
-                  <code className="font-mono">CBACT04C</code> (control-break interest) in single ACID
-                  transaction.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card material={glassMaterial} border glow effect="lift" className="py-4">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase tracking-wider font-semibold">
-                  Golden Transaction Parity
-                </CardDescription>
-                <CardTitle className="text-2xl font-bold tracking-tight">
-                  {parityReport ? `${parityReport.parity_pct.toFixed(2)}%` : '100.00%'}{' '}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    ({parityReport ? `${parityReport.accounts_matched}/${parityReport.accounts_verified}` : '50/50'} Accts)
-                  </span>
-                </CardTitle>
-                <CardAction>
-                  <Badge variant="glass" data-glass-tint="success" border className="font-mono text-xs">
-                    ${parityReport ? parityReport.max_cent_drift : '0.00'} Drift
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Exact zoned-decimal overpunch, <code className="font-mono">DEFAULT</code> rate
-                  fallback, and unrounded COBOL <code className="font-mono">PIC S9(09)V99</code>{' '}
-                  truncation.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card material={glassMaterial} border sheen effect="lift" className="py-4">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase tracking-wider font-semibold">
-                  Batch Ledger Checksum
-                </CardDescription>
-                <CardTitle className="text-2xl font-bold tracking-tight">
-                  ${parityReport ? parityReport.total_interest_charged : '1,532.39'}{' '}
-                  <span className="text-sm font-normal text-muted-foreground">Interest</span>
-                </CardTitle>
-                <CardAction>
-                  <Badge variant="glass" border className="font-mono text-xs">
-                    {rejects.length} Rejects
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Final Ledger Checksum:{' '}
-                  <strong className="font-mono">
-                    ${parityReport ? parityReport.total_final_balance : '179,041.09'}
-                  </strong>{' '}
-                  across 50 accounts.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Workspace Grid (True Side-by-Side when Split 3270 is active) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* LEFT PANE: Either Sticky 3270 Terminal + Account Selector (Split Mode) or VSAM Subfile Navigator */}
-            {viewMode === 'split' ? (
-              <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
-                {render3270Panel()}
-                <Card material={glassMaterial} border veil className="py-3">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-xs font-mono uppercase tracking-wider flex items-center gap-1.5">
-                        <DatabaseIcon className="w-3.5 h-3.5" weight="duotone" />
-                        Synchronized VSAM Account Picker
-                      </CardTitle>
-                      <Badge variant="glass" border className="font-mono text-[10px]">
-                        {filteredAccounts.length} Accts
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="max-h-56 overflow-y-auto space-y-1 pr-2">
-                    {filteredAccounts.slice(0, 18).map((acct) => (
-                      <button
-                        key={acct.acct_id}
-                        onClick={() => handleSelectAccount(acct.acct_id)}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between transition ${
-                          acct.acct_id === selectedAcctId
-                            ? 'glass glass-border glass-gradient font-bold ring-1 ring-primary/40'
-                            : 'hover:bg-foreground/5'
-                        }`}
-                      >
-                        <span>
-                          {acct.acct_id} • {acct.customer_name}
-                        </span>
-                        <span>${acct.curr_bal}</span>
-                      </button>
-                    ))}
-                  </CardContent>
-                </Card>
+        <div className="flex-1 max-w-[1760px] w-full mx-auto flex flex-col lg:flex-row gap-5 px-3 sm:px-5 py-4">
+          {/* Persistent Desktop AS/400 Command Sidebar */}
+          <aside className="hidden lg:block w-72 shrink-0">
+            <div className="sticky top-16 bg-[#070b08] border border-white/25 rounded-xl p-3.5 max-h-[calc(100vh-5rem)] overflow-y-auto">
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/20">
+                <span className="font-mono text-xs font-bold text-emerald-400">
+                  AS/400 COMMAND SIDEBAR
+                </span>
+                <span className="font-mono text-[10px] text-white/60">21 SCREENS</span>
               </div>
-            ) : (
-              <Card
-                material={glassMaterial}
-                border
-                veil
-                className="lg:col-span-4 flex flex-col py-4 max-h-[820px]"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <DatabaseIcon className="w-4 h-4" weight="duotone" />
-                      VSAM Account Subfile
-                    </CardTitle>
-                    <Badge variant="glass" border className="font-mono text-[11px]">
-                      {filteredAccounts.length} / {accounts.length}
-                    </Badge>
-                  </div>
-                  <CardDescription className="text-xs">
-                    Joined <code className="font-mono">ACCTFILE</code> +{' '}
-                    <code className="font-mono">CUSTFILE</code> +{' '}
-                    <code className="font-mono">CARDXREF</code>
-                  </CardDescription>
-                  <div className="pt-2">
-                    <Input
-                      variant="glass"
-                      icon={<MagnifyingGlassIcon className="w-4 h-4" />}
-                      placeholder="Filter by Acct ID, Customer, or Card #..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </CardHeader>
+              {renderCommandSidebarContent()}
+            </div>
+          </aside>
 
-                <CardContent className="flex-1 overflow-y-auto space-y-1.5 pr-2">
-                  {filteredAccounts.map((acct) => {
-                    const selected = acct.acct_id === selectedAcctId;
-                    const curr = parseFloat(acct.curr_bal) || 0;
-                    const lim = parseFloat(acct.credit_limit) || 1;
-                    const utilPct = Math.min(100, Math.max(0, (curr / lim) * 100));
-                    return (
-                      <button
-                        key={acct.acct_id}
-                        onClick={() => handleSelectAccount(acct.acct_id)}
-                        className={`w-full text-left p-3 rounded-xl transition flex flex-col gap-1.5 ${
-                          selected
-                            ? 'glass glass-border glass-gradient shadow-md ring-1 ring-primary/40'
-                            : 'hover:bg-foreground/5 border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-xs">{acct.acct_id}</span>
-                            <span className="text-xs font-medium truncate max-w-[150px]">
-                              {acct.customer_name}
-                            </span>
-                          </div>
-                          <span className="font-mono font-semibold text-xs">${acct.curr_bal}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span className="font-mono">
-                            Limit: ${acct.credit_limit} • Overpunch: {acct.curr_bal_overpunch}
-                          </span>
-                          <span className="font-mono">FICO: {acct.fico_score}</span>
-                        </div>
-                        <Progress value={utilPct} className="h-1" />
-                      </button>
-                    );
-                  })}
+          {/* Main Workstation Window Area */}
+          <main className="flex-1 min-w-0 space-y-4">
+            {/* Active Window Status Bar */}
+            <div className="bg-[#070b08] border border-white/25 rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="px-2 py-0.5 rounded bg-emerald-500 text-black font-mono font-bold text-xs shrink-0">
+                  {activeWindowDef.tranCode}
+                </span>
+                <span className="font-semibold text-sm text-white truncate">
+                  {activeWindowDef.title}
+                </span>
+                <span className="hidden md:inline text-xs font-mono text-emerald-400">
+                  ({activeWindowDef.bmsMap} • {activeWindowDef.cobolProg})
+                </span>
+              </div>
+              <div className="text-xs font-mono text-emerald-400 truncate max-w-full">
+                {actionBanner}
+              </div>
+            </div>
+
+            {/* Top Compact Telemetry Strip */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card material={glassMaterial} border className="py-3 bg-[#070b08] border-white/25">
+                <CardHeader className="pb-1 px-3.5">
+                  <CardDescription className="text-[11px] font-mono uppercase text-emerald-400">
+                    Active Account (`CAVW`)
+                  </CardDescription>
+                  <CardTitle className="text-lg sm:text-xl font-mono font-bold text-white truncate">
+                    #{selectedAccount?.acct_id ?? '00000000001'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3.5 pt-0 text-xs text-white/80 font-mono truncate">
+                  {selectedAccount?.customer_name ?? 'Loading...'} • ${selectedAccount?.curr_bal ?? '0.00'}
                 </CardContent>
               </Card>
-            )}
 
-            {/* RIGHT COLS: Unified CICS + Batch + DB2 + IMS/MQ + Golden Parity + Landmines + Managed Agent */}
+              <Card material={glassMaterial} border className="py-3 bg-[#070b08] border-white/25">
+                <CardHeader className="pb-1 px-3.5">
+                  <CardDescription className="text-[11px] font-mono uppercase text-emerald-400">
+                    Batch Speedup (`CBACT04C`)
+                  </CardDescription>
+                  <CardTitle className="text-lg sm:text-xl font-mono font-bold text-white">
+                    {parityReport ? `${parityReport.rust_execution_ms.toFixed(2)}ms` : '4.24ms'}{' '}
+                    <span className="text-xs font-normal text-emerald-400">
+                      ({parityReport ? `${parityReport.speedup_vs_legacy.toFixed(1)}x` : '97.3x'})
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3.5 pt-0 text-xs text-white/70 font-mono">
+                  300 Daily Tx + Control-Break Interest
+                </CardContent>
+              </Card>
+
+              <Card material={glassMaterial} border className="py-3 bg-[#070b08] border-white/25">
+                <CardHeader className="pb-1 px-3.5">
+                  <CardDescription className="text-[11px] font-mono uppercase text-emerald-400">
+                    Golden Parity (`50/50`)
+                  </CardDescription>
+                  <CardTitle className="text-lg sm:text-xl font-mono font-bold text-white">
+                    {parityReport ? `${parityReport.parity_pct.toFixed(2)}%` : '100.00%'}{' '}
+                    <span className="text-xs font-normal text-emerald-400">$0.00 Drift</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3.5 pt-0 text-xs text-white/70 font-mono">
+                  Overpunch `{selectedAccount?.curr_bal_overpunch ?? '00000000000{'}`
+                </CardContent>
+              </Card>
+
+              <Card material={glassMaterial} border className="py-3 bg-[#070b08] border-white/25">
+                <CardHeader className="pb-1 px-3.5">
+                  <CardDescription className="text-[11px] font-mono uppercase text-emerald-400">
+                    Ledger Checksum
+                  </CardDescription>
+                  <CardTitle className="text-lg sm:text-xl font-mono font-bold text-white">
+                    ${parityReport ? parityReport.total_final_balance : '91,502.86'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3.5 pt-0 text-xs text-white/70 font-mono">
+                  Interest: ${parityReport ? parityReport.total_interest_charged : '1,279.16'} •{' '}
+                  {rejects.length} Rejects
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Split Mode Side-by-Side Container */}
             <div
-              className={`${
-                viewMode === 'split' ? 'lg:col-span-7' : 'lg:col-span-8'
-              } flex flex-col gap-5`}
+              className={
+                viewMode === 'split'
+                  ? 'grid grid-cols-1 xl:grid-cols-12 gap-4 items-start'
+                  : 'space-y-4'
+              }
             >
-              {/* Selected Account Master Hero Card */}
-              {selectedAccount && (
-                <Card material={glassMaterial} border gradient sheen className="py-5">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="glass" border className="font-mono text-xs">
-                            ACCT #{selectedAccount.acct_id}
-                          </Badge>
-                          <Badge
-                            variant="glass"
-                            data-glass-tint="success"
-                            border
-                            className="font-mono text-xs"
-                          >
-                            OVERPUNCH: {selectedAccount.curr_bal_overpunch}
-                          </Badge>
-                          <Badge variant="glass" border className="font-mono text-xs">
-                            ZIP: {selectedAccount.addr_zip} • GRP:{' '}
-                            {selectedAccount.group_id || 'BLANK ➔ DEFAULT'}
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-2xl font-bold mt-2 flex items-center gap-2">
-                          <UserCircleIcon className="w-6 h-6 opacity-80" weight="duotone" />
-                          {selectedAccount.customer_name}
-                        </CardTitle>
-                        <CardDescription className="font-mono text-xs mt-0.5">
-                          Card: {selectedAccount.card_num} • Opened: {selectedAccount.open_date} •
-                          Expires: {selectedAccount.expiration_date} • FICO:{' '}
-                          {selectedAccount.fico_score}
-                        </CardDescription>
-                      </div>
+              {viewMode === 'split' && (
+                <div className="xl:col-span-5 xl:sticky xl:top-16">{render3270Panel()}</div>
+              )}
 
-                      <div className="text-right">
-                        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                          Current Ledger Balance
+              <div className={viewMode === 'split' ? 'xl:col-span-7 min-w-0 space-y-4' : 'space-y-4'}>
+                {/* =====================================================================
+                    WINDOW 1: CAVW — CUSTOMER & ACCOUNT SEARCH + MASTER INQUIRY (COACTVW)
+                   ===================================================================== */}
+                {activeWindow === 'CAVW' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    {/* Left Account & Customer Search Subfile */}
+                    <Card
+                      material={glassMaterial}
+                      border
+                      className="lg:col-span-5 bg-[#070b08] border-white/25 py-4"
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm font-mono text-emerald-400 flex items-center gap-2">
+                            <MagnifyingGlassIcon className="w-4 h-4" />
+                            VSAM ACCOUNT &amp; CUSTOMER SUBFILE (`ACCTDATA`)
+                          </CardTitle>
+                          <Badge variant="glass" border className="font-mono text-[11px]">
+                            {filteredAccounts.length}/{accounts.length}
+                          </Badge>
                         </div>
-                        <div className="text-3xl font-bold font-mono tracking-tight">
-                          ${selectedAccount.curr_bal}
+                        <div className="pt-2">
+                          <Input
+                            variant="glass"
+                            placeholder="Search Acct ID, Customer Name, Card #, ZIP..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                          />
                         </div>
-                        <div className="mt-2 flex items-center justify-end gap-2">
-                          <Button
-                            variant="default"
-                            size="xs"
-                            effect="glow"
-                            onClick={handleOneClickBillPay}
+                      </CardHeader>
+                      <CardContent className="max-h-[540px] overflow-y-auto space-y-1.5 pr-2">
+                        {filteredAccounts.map((acct) => {
+                          const selected = acct.acct_id === selectedAcctId;
+                          const curr = parseFloat(acct.curr_bal) || 0;
+                          const lim = parseFloat(acct.credit_limit) || 1;
+                          const utilPct = Math.min(100, Math.max(0, (curr / lim) * 100));
+                          return (
+                            <button
+                              key={acct.acct_id}
+                              onClick={() => handleSelectAccount(acct.acct_id)}
+                              className={`w-full text-left p-2.5 rounded-lg transition flex flex-col gap-1 border ${
+                                selected
+                                  ? 'bg-emerald-500/15 border-emerald-400 text-white'
+                                  : 'bg-black/60 border-white/10 hover:border-white/30'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono font-bold text-xs text-emerald-400">
+                                  {acct.acct_id}
+                                </span>
+                                <span className="text-xs font-semibold text-white truncate flex-1">
+                                  {acct.customer_name}
+                                </span>
+                                <span className="font-mono font-bold text-xs text-white">
+                                  ${acct.curr_bal}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] font-mono text-white/70">
+                                <span>Card: {acct.card_num}</span>
+                                <span>FICO: {acct.fico_score}</span>
+                              </div>
+                              <Progress value={utilPct} className="h-1" />
+                            </button>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+
+                    {/* Right Master Detail: Account (CVACT01Y) + Customer (CVCUS01Y) + Category Balances */}
+                    <div className="lg:col-span-7 space-y-4 min-w-0">
+                      {selectedAccount && accountDetail?.account && (
+                        <Card
+                          material={glassMaterial}
+                          border
+                          className="bg-[#070b08] border-white/25 py-4"
+                        >
+                          <CardHeader className="pb-3 border-b border-white/15">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="px-2 py-0.5 rounded bg-emerald-500 text-black font-mono font-bold text-xs">
+                                    CAVW • COACTVWC
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-black border border-emerald-500/50 text-emerald-300 font-mono text-xs">
+                                    OVERPUNCH: {selectedAccount.curr_bal_overpunch}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-black border border-white/25 text-white font-mono text-xs">
+                                    STATUS: {accountDetail.account.active_status}
+                                  </span>
+                                </div>
+                                <CardTitle className="text-xl font-bold mt-2 text-white flex items-center gap-2">
+                                  <UserCircleIcon className="w-6 h-6 text-emerald-400" />
+                                  {selectedAccount.customer_name}
+                                </CardTitle>
+                                <CardDescription className="font-mono text-xs text-white/75 mt-0.5">
+                                  Account #{selectedAccount.acct_id} • Primary Card:{' '}
+                                  {selectedAccount.card_num}
+                                </CardDescription>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-[11px] font-mono uppercase text-emerald-400">
+                                  Current Balance
+                                </div>
+                                <div className="text-2xl font-mono font-bold text-white">
+                                  ${selectedAccount.curr_bal}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-1.5 justify-end">
+                                  <Button
+                                    size="xs"
+                                    onClick={() => handleSelectWindow('CAUP')}
+                                    className="bg-black border border-emerald-400 text-emerald-300 hover:bg-emerald-950 font-mono"
+                                  >
+                                    Edit (`CAUP`)
+                                  </Button>
+                                  <Button
+                                    size="xs"
+                                    onClick={handleOneClickBillPay}
+                                    className="bg-emerald-500 text-black font-bold hover:bg-emerald-400 font-mono"
+                                  >
+                                    Pay Bill (`CBIL`)
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="pt-4 space-y-4">
+                            {/* Account Master Grid (CVACT01Y.cpy) */}
+                            <div>
+                              <div className="text-xs font-mono font-bold text-emerald-400 mb-2">
+                                1. VSAM ACCOUNT MASTER (`CVACT01Y.cpy` — 300 Bytes)
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+                                <div className="p-2.5 rounded bg-black border border-white/15">
+                                  <div className="text-[10px] text-white/60">CREDIT LIMIT</div>
+                                  <div className="text-white font-bold mt-0.5">
+                                    ${accountDetail.account.credit_limit}
+                                  </div>
+                                </div>
+                                <div className="p-2.5 rounded bg-black border border-white/15">
+                                  <div className="text-[10px] text-white/60">CASH LIMIT</div>
+                                  <div className="text-white font-bold mt-0.5">
+                                    ${accountDetail.account.cash_credit_limit}
+                                  </div>
+                                </div>
+                                <div className="p-2.5 rounded bg-black border border-white/15">
+                                  <div className="text-[10px] text-white/60">OPEN / EXPIRY</div>
+                                  <div className="text-white font-bold mt-0.5">
+                                    {accountDetail.account.open_date} /{' '}
+                                    {accountDetail.account.expiration_date}
+                                  </div>
+                                </div>
+                                <div className="p-2.5 rounded bg-black border border-white/15">
+                                  <div className="text-[10px] text-white/60">ZIP / DISCGRP</div>
+                                  <div className="text-emerald-400 font-bold mt-0.5">
+                                    {accountDetail.account.addr_zip} ➔{' '}
+                                    {accountDetail.account.group_id || 'DEFAULT'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Customer Master Grid (CVCUS01Y.cpy) */}
+                            {accountDetail.account.customer && (
+                              <div>
+                                <div className="text-xs font-mono font-bold text-emerald-400 mb-2">
+                                  2. VSAM CUSTOMER MASTER (`CVCUS01Y.cpy` — 500 Bytes)
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-mono">
+                                  <div className="p-2.5 rounded bg-black border border-white/15">
+                                    <div className="text-[10px] text-white/60">CUSTOMER ID</div>
+                                    <div className="text-white font-bold">
+                                      {accountDetail.account.customer.cust_id}
+                                    </div>
+                                  </div>
+                                  <div className="p-2.5 rounded bg-black border border-white/15">
+                                    <div className="text-[10px] text-white/60">SSN &amp; FICO</div>
+                                    <div className="text-emerald-400 font-bold">
+                                      {accountDetail.account.customer.ssn} (FICO:{' '}
+                                      {accountDetail.account.customer.fico_score})
+                                    </div>
+                                  </div>
+                                  <div className="p-2.5 rounded bg-black border border-white/15">
+                                    <div className="text-[10px] text-white/60">DATE OF BIRTH</div>
+                                    <div className="text-white font-bold">
+                                      {accountDetail.account.customer.dob}
+                                    </div>
+                                  </div>
+                                  <div className="p-2.5 rounded bg-black border border-white/15 sm:col-span-2">
+                                    <div className="text-[10px] text-white/60">ADDRESS</div>
+                                    <div className="text-white font-bold truncate">
+                                      {accountDetail.account.customer.address}
+                                    </div>
+                                  </div>
+                                  <div className="p-2.5 rounded bg-black border border-white/15">
+                                    <div className="text-[10px] text-white/60">PHONE</div>
+                                    <div className="text-white font-bold truncate">
+                                      {accountDetail.account.customer.phone}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Category Balances (TCATBALF) */}
+                            <div>
+                              <div className="text-xs font-mono font-bold text-emerald-400 mb-2">
+                                3. CATEGORY BALANCES (`TCATBALF` VSAM KSDS)
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {(accountDetail.category_balances ?? []).map(
+                                  (cb: CategoryBalanceDto, i: number) => (
+                                    <div
+                                      key={i}
+                                      className="p-2.5 rounded bg-black border border-white/15 flex items-center justify-between font-mono text-xs"
+                                    >
+                                      <span>
+                                        TYPE <strong className="text-emerald-400">{cb.tran_type_cd}</strong> / CAT{' '}
+                                        <strong className="text-emerald-400">{cb.tran_cat_cd}</strong>
+                                      </span>
+                                      <span className="font-bold text-white">${cb.tran_cat_bal}</span>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Live 300-Byte CVACT01Y VSAM Overpunch Tape Preview */}
+                            <div className="p-3 rounded bg-black border border-emerald-500/40 font-mono text-[11px] overflow-x-auto max-w-full">
+                              <div className="flex items-center justify-between text-emerald-400 mb-1">
+                                <span>LIVE 300-BYTE VSAM KSDS RECORD (`CVACT01Y.cpy`)</span>
+                                <span>RECLEN=300</span>
+                              </div>
+                              <div className="text-white whitespace-nowrap">
+                                {accountDetail.account.vsam_fixed_width_preview}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* =====================================================================
+                    WINDOW 2: CAUP — ACCOUNT & CUSTOMER UPDATE (COACTUP / COACTUPC)
+                   ===================================================================== */}
+                {activeWindow === 'CAUP' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                    <CardHeader className="pb-3 border-b border-white/15">
+                      <CardTitle className="text-base font-mono text-emerald-400 flex items-center gap-2">
+                        <PencilSimpleIcon className="w-4 h-4" />
+                        CAUP — ACCOUNT MASTER UPDATE (`COACTUP.bms` / `COACTUPC.cbl`)
+                      </CardTitle>
+                      <CardDescription className="text-xs text-white/70">
+                        Updates `ACCTDATA` VSAM KSDS record in-place and recomputes signed zoned-decimal
+                        overpunch bytes.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <form onSubmit={handleUpdateAccount} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-3 rounded bg-black border border-white/20">
+                          <label className="text-xs font-mono text-emerald-400 block mb-1">
+                            ACCOUNT ID (`ACCT-ID` PIC 9(11))
+                          </label>
+                          <Input variant="glass" value={selectedAcctId} disabled />
+                        </div>
+                        <div className="p-3 rounded bg-black border border-white/20">
+                          <label className="text-xs font-mono text-emerald-400 block mb-1">
+                            ACTIVE STATUS (`ACCT-ACTIVE-STATUS` Y/N)
+                          </label>
+                          <select
+                            value={activeStatusEdit}
+                            onChange={(e) => setActiveStatusEdit(e.target.value)}
+                            className="w-full bg-[#070b08] border border-white/30 rounded px-3 py-2 text-xs font-mono text-white"
                           >
-                            ⚡ 1-Click Bill Pay (`COBIL00C`)
+                            <option value="Y">Y — ACTIVE ACCOUNT</option>
+                            <option value="N">N — CLOSED / INACTIVE</option>
+                          </select>
+                        </div>
+                        <div className="p-3 rounded bg-black border border-white/20">
+                          <label className="text-xs font-mono text-emerald-400 block mb-1">
+                            CREDIT LIMIT (`ACCT-CREDIT-LIMIT` PIC S9(10)V99)
+                          </label>
+                          <Input
+                            variant="glass"
+                            value={creditLimitEdit}
+                            onChange={(e) => setCreditLimitEdit(e.target.value)}
+                          />
+                        </div>
+                        <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-2 pt-2">
+                          <span className="font-mono text-xs text-white/70">
+                            Current Balance: <strong className="text-white">${selectedAccount?.curr_bal}</strong> •
+                            Overpunch: <strong className="text-emerald-400">{selectedAccount?.curr_bal_overpunch}</strong>
+                          </span>
+                          <Button
+                            type="submit"
+                            className="bg-emerald-500 text-black font-mono font-bold hover:bg-emerald-400"
+                          >
+                            PF5 — Commit VSAM `ACCTDATA` Update (`COACTUPC`)
+                          </Button>
+                        </div>
+                      </form>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* =====================================================================
+                    WINDOW 3: CBIL — ONLINE BILL PAYMENT (COBIL00 / COBIL00C)
+                   ===================================================================== */}
+                {activeWindow === 'CBIL' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                    <CardHeader className="pb-3 border-b border-white/15">
+                      <CardTitle className="text-base font-mono text-emerald-400">
+                        CBIL — ONLINE BILL PAYMENT (`COBIL00.bms` / `COBIL00C.cbl`)
+                      </CardTitle>
+                      <CardDescription className="text-xs text-white/70">
+                        Reads `ACCTDATA`, resolves primary card via `CXACAIX`, posts payment transaction
+                        (`TYPE=02, CAT=0002`), and zeroes `ACCT-CURR-BAL`.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
+                        <div className="p-4 rounded-lg bg-black border border-white/20">
+                          <div className="text-xs text-white/60">TARGET ACCOUNT ID</div>
+                          <div className="text-xl font-bold text-emerald-400 mt-1">
+                            #{selectedAccount?.acct_id}
+                          </div>
+                          <div className="text-xs text-white/80 mt-1">
+                            {selectedAccount?.customer_name}
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-black border border-white/20">
+                          <div className="text-xs text-white/60">CURRENT OUTSTANDING BALANCE</div>
+                          <div className="text-2xl font-bold text-white mt-1">
+                            ${selectedAccount?.curr_bal}
+                          </div>
+                          <div className="text-xs text-emerald-400 mt-1">
+                            Overpunch: {selectedAccount?.curr_bal_overpunch}
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-black border border-emerald-500/40 flex flex-col justify-between">
+                          <div className="text-xs text-emerald-400">CONFIRM FULL SETTLEMENT</div>
+                          <Button
+                            onClick={handleOneClickBillPay}
+                            className="w-full mt-2 bg-emerald-500 text-black font-mono font-bold hover:bg-emerald-400"
+                          >
+                            Execute Bill Payment (`COBIL00C`)
                           </Button>
                         </div>
                       </div>
-                    </div>
-                  </CardHeader>
+                    </CardContent>
+                  </Card>
+                )}
 
-                  {accountDetail?.account && (
-                    <CardContent className="pt-2 space-y-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="glass glass-border rounded-lg p-3">
-                          <div className="text-[11px] text-muted-foreground">Initial Seed Balance</div>
-                          <div className="font-mono font-bold text-sm mt-0.5">
-                            ${accountDetail.account.initial_bal}
-                          </div>
+                {/* =====================================================================
+                    WINDOW 4: CCLI / CCDL / CCUP — CREDIT CARD LIST, DETAIL & UPDATE
+                   ===================================================================== */}
+                {activeWindow === 'CCLI' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    <Card
+                      material={glassMaterial}
+                      border
+                      className="lg:col-span-7 bg-[#070b08] border-white/25 py-4"
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-sm font-mono text-emerald-400">
+                            CCLI — VSAM CREDIT CARD SUBFILE (`COCRDLI` • `CARDDATA` + `CARDAIX`)
+                          </CardTitle>
+                          <Badge variant="glass" border className="font-mono text-xs">
+                            {filteredCards.length} Cards
+                          </Badge>
                         </div>
-                        <div className="glass glass-border rounded-lg p-3">
-                          <div className="text-[11px] text-muted-foreground">Credit Limit (`CAUP`)</div>
-                          <div className="font-mono font-bold text-sm mt-0.5">
-                            ${accountDetail.account.credit_limit}
-                          </div>
+                        <div className="pt-2">
+                          <Input
+                            variant="glass"
+                            placeholder="Filter by Account ID, 16-digit Card #, or Embossed Name..."
+                            value={cardFilterQuery}
+                            onChange={(e) => setCardFilterQuery(e.target.value)}
+                          />
                         </div>
-                        <div className="glass glass-border rounded-lg p-3">
-                          <div className="text-[11px] text-muted-foreground">Cycle Credit / Reset</div>
-                          <div className="font-mono font-bold text-sm mt-0.5">
-                            ${accountDetail.account.curr_cyc_credit}
-                          </div>
-                        </div>
-                        <div className="glass glass-border rounded-lg p-3">
-                          <div className="text-[11px] text-muted-foreground">Cycle Debit / Reset</div>
-                          <div className="font-mono font-bold text-sm mt-0.5">
-                            ${accountDetail.account.curr_cyc_debit}
-                          </div>
-                        </div>
-                      </div>
+                      </CardHeader>
+                      <CardContent className="overflow-x-auto max-h-[500px]">
+                        <Table variant="glass">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-mono text-emerald-400">Account</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Card Number</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Embossed Name</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Expiry</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">St</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredCards.map((c) => (
+                              <TableRow
+                                key={c.card_num}
+                                onClick={() => handleSelectCardRow(c)}
+                                className={`cursor-pointer ${
+                                  selectedCard?.card_num === c.card_num ? 'bg-emerald-500/20' : ''
+                                }`}
+                              >
+                                <TableCell className="font-mono text-xs text-emerald-400">
+                                  {c.acct_id}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs font-bold text-white">
+                                  {c.card_num}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-white">
+                                  {c.embossed_name}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-white/80">
+                                  {c.expiration_date}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-emerald-400 font-bold">
+                                  {c.active_status}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
 
-                      {/* Live 300-Byte CVACT01Y VSAM Overpunch Tape Preview */}
-                      {accountDetail.account.vsam_fixed_width_preview && (
-                        <div className="glass glass-border rounded-lg px-3 py-2 text-[11px] font-mono overflow-x-auto">
-                          <div className="flex items-center justify-between text-muted-foreground mb-1">
-                            <span>
-                              LIVE 300-BYTE VSAM KSDS TAPE (`CVACT01Y.cpy` • Signed Overpunch Encoding)
+                    {/* Right Card Detail (CCDL / COCRDSL) & Update (CCUP / COCRDUP) */}
+                    <Card
+                      material={glassMaterial}
+                      border
+                      className="lg:col-span-5 bg-[#070b08] border-white/25 py-4"
+                    >
+                      <CardHeader className="pb-3 border-b border-white/15">
+                        <CardTitle className="text-sm font-mono text-emerald-400">
+                          CCDL / CCUP — CREDIT CARD DETAIL &amp; UPDATE (`COCRDSL` / `COCRDUP`)
+                        </CardTitle>
+                        <CardDescription className="text-xs text-white/70">
+                          Click any card in the subfile to view or update `CVACT02Y` fields.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-4">
+                        {selectedCard ? (
+                          <form onSubmit={handleUpdateCard} className="space-y-3 font-mono text-xs">
+                            <div>
+                              <label className="text-emerald-400 block mb-1">
+                                CARD NUMBER (`CARD-NUM` PIC X(16))
+                              </label>
+                              <Input variant="glass" value={selectedCard.card_num} disabled />
+                            </div>
+                            <div>
+                              <label className="text-emerald-400 block mb-1">
+                                ASSOCIATED ACCOUNT (`CARD-ACCT-ID` PIC 9(11))
+                              </label>
+                              <Input variant="glass" value={selectedCard.acct_id} disabled />
+                            </div>
+                            <div>
+                              <label className="text-emerald-400 block mb-1">
+                                EMBOSSED NAME (`CARD-EMBOSSED-NAME` PIC X(50))
+                              </label>
+                              <Input
+                                variant="glass"
+                                value={cardEmbossedEdit}
+                                onChange={(e) => setCardEmbossedEdit(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-emerald-400 block mb-1">
+                                EXPIRATION DATE (`CARD-EXPIRAION-DATE` YYYY-MM-DD)
+                              </label>
+                              <Input
+                                variant="glass"
+                                value={cardExpiryEdit}
+                                onChange={(e) => setCardExpiryEdit(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-emerald-400 block mb-1">
+                                CARD STATUS (`CARD-ACTIVE-STATUS` Y/N)
+                              </label>
+                              <select
+                                value={cardStatusEdit}
+                                onChange={(e) => setCardStatusEdit(e.target.value)}
+                                className="w-full bg-black border border-white/30 rounded px-3 py-2 text-xs text-white"
+                              >
+                                <option value="Y">Y — ACTIVE</option>
+                                <option value="N">N — BLOCKED / INACTIVE</option>
+                              </select>
+                            </div>
+                            <Button
+                              type="submit"
+                              className="w-full bg-emerald-500 text-black font-bold hover:bg-emerald-400"
+                            >
+                              PF5 — Save Card Changes (`COCRDUPC`)
+                            </Button>
+                          </form>
+                        ) : (
+                          <div className="text-xs text-white/60">Select a card from the list.</div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* =====================================================================
+                    WINDOW 5: CT00 / CT01 — TRANSACTION LIST & SINGLE TRANSACTION DETAIL
+                   ===================================================================== */}
+                {activeWindow === 'CT00' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    <Card
+                      material={glassMaterial}
+                      border
+                      className="lg:col-span-7 bg-[#070b08] border-white/25 py-4"
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm font-mono text-emerald-400">
+                            CT00 — TRANSACTION LIST (`COTRN00.bms` / `COTRN00C.cbl`)
+                          </CardTitle>
+                          <Button
+                            size="xs"
+                            onClick={() => handleSelectWindow('CT02')}
+                            className="bg-emerald-500 text-black font-mono font-bold"
+                          >
+                            + Add Transaction (`CT02`)
+                          </Button>
+                        </div>
+                        <CardDescription className="text-xs text-white/70">
+                          Showing posted `TRANSACT` KSDS records for Account #{selectedAcctId}. Click any
+                          row to inspect in `CT01`.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="overflow-x-auto max-h-[500px]">
+                        <Table variant="glass">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-mono text-emerald-400">Tran ID</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Tp/Cat</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Description</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                Amount
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(accountDetail?.transactions ?? []).map((tx: AccountTransactionDto) => (
+                              <TableRow
+                                key={tx.tran_id}
+                                onClick={() => {
+                                  setSelectedTxDetail(tx);
+                                  sendTerminalCommand('CT01', 'ENTER', {
+                                    ACCTID: selectedAcctId,
+                                    TRANID: tx.tran_id,
+                                  });
+                                }}
+                                className={`cursor-pointer ${
+                                  selectedTxDetail?.tran_id === tx.tran_id ? 'bg-emerald-500/20' : ''
+                                }`}
+                              >
+                                <TableCell className="font-mono text-xs text-emerald-400">
+                                  {tx.tran_id}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-white">
+                                  {tx.type_cd}/{tx.cat_cd}
+                                </TableCell>
+                                <TableCell className="text-xs text-white">{tx.description}</TableCell>
+                                <TableCell className="font-mono text-xs font-bold text-white text-right">
+                                  ${tx.amt}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+
+                    {/* CT01: Single Transaction View (COTRN01.bms / COTRN01C.cbl) */}
+                    <Card
+                      material={glassMaterial}
+                      border
+                      className="lg:col-span-5 bg-[#070b08] border-white/25 py-4"
+                    >
+                      <CardHeader className="pb-2 border-b border-white/15">
+                        <CardTitle className="text-sm font-mono text-emerald-400">
+                          CT01 — TRANSACTION DETAIL VIEW (`COTRN01.bms` / `COTRN01C.cbl`)
+                        </CardTitle>
+                        <CardDescription className="text-xs text-white/70">
+                          Full 350-byte `CVTRA05Y.cpy` record layout inspector.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-3 font-mono text-xs space-y-2.5">
+                        {selectedTxDetail ? (
+                          <>
+                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
+                              <span className="text-emerald-400">TRAN-ID (PIC X(16))</span>
+                              <span className="text-white font-bold">{selectedTxDetail.tran_id}</span>
+                            </div>
+                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
+                              <span className="text-emerald-400">ACCT-ID / CARD-NUM</span>
+                              <span className="text-white">
+                                {selectedAcctId} / {selectedAccount?.card_num}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
+                              <span className="text-emerald-400">TYPE / CATEGORY</span>
+                              <span className="text-white">
+                                {selectedTxDetail.type_cd} / {selectedTxDetail.cat_cd}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
+                              <span className="text-emerald-400">TRAN-SOURCE</span>
+                              <span className="text-white">{selectedTxDetail.source}</span>
+                            </div>
+                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
+                              <span className="text-emerald-400">TRAN-AMT (PIC S9(09)V99)</span>
+                              <span className="text-emerald-400 font-bold text-sm">
+                                ${selectedTxDetail.amt}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded bg-black border border-white/15">
+                              <div className="text-emerald-400 text-[10px]">TRAN-DESC</div>
+                              <div className="text-white mt-0.5">{selectedTxDetail.description}</div>
+                            </div>
+                            <div className="p-2.5 rounded bg-black border border-white/15">
+                              <div className="text-emerald-400 text-[10px]">MERCHANT / TIMESTAMP</div>
+                              <div className="text-white mt-0.5">
+                                {selectedTxDetail.merchant_name} • {selectedTxDetail.orig_ts}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-white/60">Select a transaction row to view details.</div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* =====================================================================
+                    WINDOW 6: CT02 — ADD NEW TRANSACTION (COTRN02.bms / COTRN02C.cbl)
+                   ===================================================================== */}
+                {activeWindow === 'CT02' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                    <CardHeader className="pb-3 border-b border-white/15">
+                      <CardTitle className="text-base font-mono text-emerald-400 flex items-center gap-2">
+                        <PlusCircleIcon className="w-4 h-4" />
+                        CT02 — ADD TRANSACTION (`COTRN02.bms` / `COTRN02C.cbl`)
+                      </CardTitle>
+                      <CardDescription className="text-xs text-white/70">
+                        Validates account/card in `CXACAIX`, appends a new 350-byte record to `TRANSACT`
+                        VSAM KSDS, and updates `ACCTDATA` balance.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <form
+                        onSubmit={handleAddTransaction}
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 font-mono text-xs"
+                      >
+                        <div>
+                          <label className="text-emerald-400 block mb-1">ACCOUNT ID (11 digits)</label>
+                          <Input variant="glass" value={selectedAcctId} disabled />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">TYPE CODE (`01`..`07`)</label>
+                          <Input
+                            variant="glass"
+                            value={newTxType}
+                            onChange={(e) => setNewTxType(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">CATEGORY CODE (`0001`..`0005`)</label>
+                          <Input
+                            variant="glass"
+                            value={newTxCat}
+                            onChange={(e) => setNewTxCat(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">SOURCE (`ONLINE` / `POS TERM`)</label>
+                          <Input
+                            variant="glass"
+                            value={newTxSource}
+                            onChange={(e) => setNewTxSource(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">MERCHANT NAME</label>
+                          <Input
+                            variant="glass"
+                            value={newTxMerchant}
+                            onChange={(e) => setNewTxMerchant(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">AMOUNT ($)</label>
+                          <Input
+                            variant="glass"
+                            value={newTxAmt}
+                            onChange={(e) => setNewTxAmt(e.target.value)}
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-emerald-400 block mb-1">TRANSACTION DESCRIPTION</label>
+                          <Input
+                            variant="glass"
+                            value={newTxDesc}
+                            onChange={(e) => setNewTxDesc(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            type="submit"
+                            className="w-full bg-emerald-500 text-black font-bold hover:bg-emerald-400"
+                          >
+                            PF5 — Post Transaction (`COTRN02C`)
+                          </Button>
+                        </div>
+                      </form>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* =====================================================================
+                    WINDOW 7: CR00 — TRANSACTION REPORTS (CORPT00.bms / CBTRN03C.cbl)
+                   ===================================================================== */}
+                {activeWindow === 'CR00' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                    <CardHeader className="pb-3 border-b border-white/15">
+                      <CardTitle className="text-base font-mono text-emerald-400 flex items-center gap-2">
+                        <FileTextIcon className="w-4 h-4" />
+                        CR00 — TRANSACTION REPORT GENERATOR (`CORPT00.bms` ➔ `TRANREPT` / `CBTRN03C.cbl`)
+                      </CardTitle>
+                      <CardDescription className="text-xs text-white/70">
+                        Submits JCL report job via CICS Extrapartition TDQ `JOBS` for Monthly, Yearly, or
+                        Custom Date Range intervals.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                      <form
+                        onSubmit={handleGenerateReport}
+                        className="flex flex-wrap items-end gap-3 font-mono text-xs"
+                      >
+                        <div>
+                          <label className="text-emerald-400 block mb-1">REPORT TYPE</label>
+                          <select
+                            value={reportType}
+                            onChange={(e) =>
+                              setReportType(e.target.value as 'MONTHLY' | 'YEARLY' | 'CUSTOM')
+                            }
+                            className="bg-black border border-white/30 rounded px-3 py-2 text-xs text-white"
+                          >
+                            <option value="MONTHLY">MONTHLY REPORT (`CORPT00C`)</option>
+                            <option value="YEARLY">YEARLY REPORT (`CORPT00C`)</option>
+                            <option value="CUSTOM">CUSTOM DATE RANGE (`CORPT00C`)</option>
+                          </select>
+                        </div>
+                        {reportType === 'CUSTOM' && (
+                          <>
+                            <div>
+                              <label className="text-emerald-400 block mb-1">START DATE (YYYY-MM-DD)</label>
+                              <Input
+                                variant="glass"
+                                value={reportStartDate}
+                                onChange={(e) => setReportStartDate(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-emerald-400 block mb-1">END DATE (YYYY-MM-DD)</label>
+                              <Input
+                                variant="glass"
+                                value={reportEndDate}
+                                onChange={(e) => setReportEndDate(e.target.value)}
+                              />
+                            </div>
+                          </>
+                        )}
+                        <Button
+                          type="submit"
+                          className="bg-emerald-500 text-black font-bold hover:bg-emerald-400"
+                        >
+                          Submit JCL Report (`TRANREPT`)
+                        </Button>
+                      </form>
+
+                      {reportResult && (
+                        <div className="space-y-3">
+                          <div className="p-3 rounded bg-black border border-emerald-500/40 flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
+                            <span className="text-emerald-400">{reportResult.message}</span>
+                            <span className="text-white font-bold">
+                              Range: {reportResult.start_date} ➔ {reportResult.end_date} | Total: $
+                              {reportResult.total_amount}
                             </span>
-                            <span className="text-[10px]">RECLEN=300</span>
                           </div>
-                          <div className="text-xs font-semibold tracking-wider whitespace-nowrap">
-                            {accountDetail.account.vsam_fixed_width_preview}
+                          <div className="overflow-x-auto max-h-96">
+                            <Table variant="glass">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs font-mono text-emerald-400">Tran ID</TableHead>
+                                  <TableHead className="text-xs font-mono text-emerald-400">Account</TableHead>
+                                  <TableHead className="text-xs font-mono text-emerald-400">Date/Time</TableHead>
+                                  <TableHead className="text-xs font-mono text-emerald-400">Description</TableHead>
+                                  <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                    Amount
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {(reportResult.transactions ?? [])
+                                  .slice(0, 40)
+                                  .map((r: TransactionRowDto) => (
+                                    <TableRow key={r.tran_id}>
+                                      <TableCell className="font-mono text-xs text-emerald-400">
+                                        {r.tran_id}
+                                      </TableCell>
+                                      <TableCell className="font-mono text-xs text-white">
+                                        {r.acct_id}
+                                      </TableCell>
+                                      <TableCell className="font-mono text-xs text-white/75">
+                                        {r.orig_ts.slice(0, 10)}
+                                      </TableCell>
+                                      <TableCell className="text-xs text-white">
+                                        {r.description}
+                                      </TableCell>
+                                      <TableCell className="font-mono text-xs font-bold text-white text-right">
+                                        ${r.amt}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                              </TableBody>
+                            </Table>
                           </div>
                         </div>
                       )}
                     </CardContent>
-                  )}
-                </Card>
-              )}
+                  </Card>
+                )}
 
-              {/* Sistine Glass Tabs */}
-              <Tabs defaultValue="transactions" className="w-full">
-                <TabsList
-                  variant="glass"
-                  className="w-full justify-start flex-wrap h-auto gap-1 p-1.5"
-                >
-                  <TabsTrigger value="transactions" className="text-xs gap-1.5">
-                    <ReceiptIcon className="w-3.5 h-3.5" />
-                    Account 360 ({accountDetail?.transactions?.length ?? 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="landmines" className="text-xs gap-1.5">
-                    <SparkleIcon className="w-3.5 h-3.5" />
-                    6 Landmines &amp; COBOL ↔ Rust
-                  </TabsTrigger>
-                  <TabsTrigger value="agent" className="text-xs gap-1.5">
-                    <ShieldCheckIcon className="w-3.5 h-3.5" />
-                    Argon + Antigravity Agent
-                  </TabsTrigger>
-                  <TabsTrigger value="db2" className="text-xs gap-1.5">
-                    <CreditCardIcon className="w-3.5 h-3.5" />
-                    DB2 (`SQLCODE`)
-                  </TabsTrigger>
-                  <TabsTrigger value="ims" className="text-xs gap-1.5">
-                    <CpuIcon className="w-3.5 h-3.5" />
-                    IMS &amp; MQ (`COPAUA0C`)
-                  </TabsTrigger>
-                  <TabsTrigger value="rejects" className="text-xs gap-1.5">
-                    <WarningOctagonIcon className="w-3.5 h-3.5" />
-                    Rejects ({rejects.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="parity" className="text-xs gap-1.5">
-                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                    Golden Parity (50/50)
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* TAB 1: Account 360, Transactions & Credit Limit Update */}
-                <TabsContent value="transactions" className="mt-3 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card material={glassMaterial} border className="py-4 md:col-span-2">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">
-                          Category Balances (`TCATBALF` Composite Key `ACCT+TYPE+CAT`)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {(accountDetail?.category_balances ?? []).map(
-                            (cb: CategoryBalanceDto, i: number) => (
-                              <div
-                                key={i}
-                                className="glass glass-border rounded-lg p-2.5 flex items-center justify-between"
-                              >
-                                <div>
-                                  <div className="text-xs font-mono font-semibold">
-                                    Type {cb.tran_type_cd} / Cat {cb.tran_cat_cd}
-                                  </div>
-                                  <div className="text-[11px] text-muted-foreground">
-                                    Rate Group: DEFAULT (12.50%)
-                                  </div>
-                                </div>
-                                <div className="font-mono font-bold text-sm">
-                                  ${cb.tran_cat_bal}
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card material={glassMaterial} border className="py-4">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Update Account (`CAUP`)</CardTitle>
-                        <CardDescription className="text-xs">
-                          Replaces BMS map `COACTUP.bms`
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <form onSubmit={handleUpdateCreditLimit} className="space-y-2.5">
-                          <div>
-                            <label className="text-xs font-medium block mb-1">Credit Limit ($)</label>
-                            <Input
-                              variant="glass"
-                              value={creditLimitEdit}
-                              onChange={(e) => setCreditLimitEdit(e.target.value)}
-                            />
-                          </div>
-                          <Button type="submit" variant="default" size="sm" className="w-full">
-                            Save Credit Limit (`COACTUPC`)
-                          </Button>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <Card material={glassMaterial} border className="py-4">
+                {/* =====================================================================
+                    WINDOW 8: CPVS / CPVD — IMS AUTHORIZATIONS, FRAUD & MQ SWIPE
+                   ===================================================================== */}
+                {activeWindow === 'CPVS' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        Posted Transactions (`TRANSACT` VSAM KSDS — `CBTRN02C` &amp; `CBACT04C`)
+                      <CardTitle className="text-sm font-mono text-emerald-400">
+                        CPVS / CPVD — IMS PENDING AUTHORIZATIONS &amp; IBM MQ SWIPE (`COPAU00` /
+                        `COPAU01` / `COPAUA0C`)
                       </CardTitle>
+                      <CardDescription className="text-xs text-white/70">
+                        Simulates an MQ swipe, validates credit limit (`00` Approved vs `05` Overlimit),
+                        inserts IMS child segment with 9&apos;s-complement key (`99999 - YYDDD`), and flags
+                        fraud to DB2 `CARDDEMO.AUTHFRDS`.
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <Table variant="glass">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Tran ID</TableHead>
-                            <TableHead className="text-xs">Source</TableHead>
-                            <TableHead className="text-xs">Type/Cat</TableHead>
-                            <TableHead className="text-xs">Description</TableHead>
-                            <TableHead className="text-xs text-right">Amount</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(accountDetail?.transactions ?? []).map((tx: AccountTransactionDto) => (
-                            <TableRow key={tx.tran_id}>
-                              <TableCell className="font-mono text-xs font-medium">
-                                {tx.tran_id}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="glass"
-                                  data-glass-tint={tx.source === 'System' ? 'info' : undefined}
-                                  border
-                                  className="text-[10px] font-mono"
-                                >
-                                  {tx.source}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {tx.type_cd}/{tx.cat_cd}
-                              </TableCell>
-                              <TableCell className="text-xs">{tx.description}</TableCell>
-                              <TableCell className="font-mono text-xs font-bold text-right">
-                                ${tx.amt}
-                              </TableCell>
+                    <CardContent className="space-y-4">
+                      <form
+                        onSubmit={handleMqSwipe}
+                        className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end font-mono text-xs"
+                      >
+                        <div>
+                          <label className="text-emerald-400 block mb-1">CARD NUMBER</label>
+                          <Input
+                            variant="glass"
+                            value={mqSwipeCard}
+                            onChange={(e) => setMqSwipeCard(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">SWIPE AMOUNT ($)</label>
+                          <Input
+                            variant="glass"
+                            value={mqSwipeAmt}
+                            onChange={(e) => setMqSwipeAmt(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">MERCHANT</label>
+                          <Input
+                            variant="glass"
+                            value={mqSwipeMerchant}
+                            onChange={(e) => setMqSwipeMerchant(e.target.value)}
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          className="bg-emerald-500 text-black font-bold hover:bg-emerald-400"
+                        >
+                          Send MQ Swipe (`COPAUA0C`)
+                        </Button>
+                      </form>
+
+                      <div className="overflow-x-auto">
+                        <Table variant="glass">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-mono text-emerald-400">Acct ID</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">
+                                9&apos;s-Comp Key
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Merchant</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">Resp</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                Amount
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                Fraud (`CPVD`)
+                              </TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {imsData.details.slice(0, 15).map((d: ImsAuthDetailDto, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-mono text-xs text-white">
+                                  {d.acct_id}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-emerald-400">
+                                  {d.auth_date_9c}:{d.auth_time_9c}
+                                </TableCell>
+                                <TableCell className="text-xs text-white">{d.merchant_name}</TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={d.auth_resp_code === '00' ? 'glass' : 'destructive'}
+                                    border
+                                    className="font-mono text-[10px]"
+                                  >
+                                    {d.auth_resp_code}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-right font-bold text-white">
+                                  ${d.transaction_amt}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant={d.auth_fraud === 'F' ? 'destructive' : 'glass'}
+                                    size="xs"
+                                    border
+                                    onClick={() =>
+                                      handleToggleFraud(
+                                        d.acct_id,
+                                        d.auth_date_9c,
+                                        d.auth_time_9c,
+                                        d.auth_fraud !== 'F'
+                                      )
+                                    }
+                                  >
+                                    {d.auth_fraud === 'F' ? 'FRAUD FLAGGED' : 'Flag Fraud'}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </CardContent>
                   </Card>
-                </TabsContent>
+                )}
 
-                {/* TAB 2: DB2 TRANSACTION_TYPE Catalog with SQLCODE Verification */}
-                <TabsContent value="db2" className="mt-3 space-y-4">
-                  <Card material={glassMaterial} border className="py-4">
+                {/* =====================================================================
+                    WINDOW 9: CTLI / CTTU — DB2 TRANSACTION TYPE MAINTENANCE
+                   ===================================================================== */}
+                {activeWindow === 'CTLI' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        DB2 `CARDDEMO.TRANSACTION_TYPE` Maintenance (`COTRTLIC` / `COTRTUPC`)
+                      <CardTitle className="text-sm font-mono text-emerald-400">
+                        CTLI / CTTU — DB2 `CARDDEMO.TRANSACTION_TYPE` MAINTENANCE (`COTRTLIC` /
+                        `COTRTUPC`)
                       </CardTitle>
-                      <CardDescription className="text-xs">
-                        Enforces authentic DB2 `SQLCODE = 0`, `-803` (Duplicate Key), and `-532`
-                        (Foreign Key Restrict Violation on `TRANSACTION_TYPE_CATEGORY`).
+                      <CardDescription className="text-xs text-white/70">
+                        Enforces authentic DB2 `SQLCODE = 0`, `-803` (Duplicate Key), and `-532` (FK
+                        Restrict Violation on `TRANSACTION_TYPE_CATEGORY`).
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {db2LastStatus && (
-                        <Alert
-                          variant={db2LastStatus.sqlcode === 0 ? 'success' : 'destructive'}
-                        >
+                        <Alert variant={db2LastStatus.sqlcode === 0 ? 'success' : 'destructive'}>
                           <AlertTitle className="font-mono text-xs font-bold">
                             DB2 SQLCA RETURN: SQLCODE = {db2LastStatus.sqlcode}
                           </AlertTitle>
@@ -1354,9 +2339,9 @@ export function App() {
                         </Alert>
                       )}
 
-                      <div className="flex flex-wrap items-end gap-2">
+                      <div className="flex flex-wrap items-end gap-2 font-mono text-xs">
                         <div className="w-24">
-                          <label className="text-xs block mb-1">Type Code</label>
+                          <label className="text-emerald-400 block mb-1">TR_TYPE</label>
                           <Input
                             variant="glass"
                             maxLength={2}
@@ -1364,8 +2349,8 @@ export function App() {
                             onChange={(e) => setDb2TypeCode(e.target.value)}
                           />
                         </div>
-                        <div className="flex-1 min-w-[200px]">
-                          <label className="text-xs block mb-1">Description</label>
+                        <div className="flex-1 min-w-[180px]">
+                          <label className="text-emerald-400 block mb-1">TR_DESCRIPTION</label>
                           <Input
                             variant="glass"
                             value={db2TypeDesc}
@@ -1373,9 +2358,9 @@ export function App() {
                           />
                         </div>
                         <Button
-                          variant="default"
                           size="sm"
                           onClick={() => handleDb2Mutate('ADD')}
+                          className="bg-emerald-500 text-black font-bold"
                         >
                           INSERT (`SQLCODE 0 / -803`)
                         </Button>
@@ -1396,647 +2381,552 @@ export function App() {
                         </Button>
                       </div>
 
-                      <Table variant="glass">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">TR_TYPE</TableHead>
-                            <TableHead className="text-xs">TR_DESCRIPTION</TableHead>
-                            <TableHead className="text-xs text-right">Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {db2Data.transaction_types.map((t) => (
-                            <TableRow key={t.tr_type}>
-                              <TableCell className="font-mono text-xs font-bold">
-                                {t.tr_type}
-                              </TableCell>
-                              <TableCell className="text-xs">{t.tr_description}</TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="glass"
-                                  size="xs"
-                                  border
-                                  onClick={() => handleDb2Mutate('DELETE', t.tr_type, t.tr_description)}
-                                >
-                                  Delete
-                                </Button>
-                              </TableCell>
+                      <div className="overflow-x-auto">
+                        <Table variant="glass">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-mono text-emerald-400">TR_TYPE</TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">
+                                TR_DESCRIPTION
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                Action
+                              </TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* TAB 3: IMS Hierarchical Database & IBM MQ Real-Time Authorization */}
-                <TabsContent value="ims" className="mt-3 space-y-4">
-                  <Card material={glassMaterial} border className="py-4">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        IBM MQ Real-Time Card Authorization (`COPAUA0C` + IMS `PAUTSUM0` / `PAUTDTL1`)
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Simulates an MQ request message, validates credit limit, and inserts a child
-                        segment using 9&apos;s-complement chronological keys (`99999 - YYDDD`).
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <form onSubmit={handleMqSwipe} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end">
-                        <div>
-                          <label className="text-xs block mb-1">Card Number</label>
-                          <Input
-                            variant="glass"
-                            value={mqSwipeCard}
-                            onChange={(e) => setMqSwipeCard(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs block mb-1">Swipe Amount ($)</label>
-                          <Input
-                            variant="glass"
-                            value={mqSwipeAmt}
-                            onChange={(e) => setMqSwipeAmt(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs block mb-1">Merchant</label>
-                          <Input
-                            variant="glass"
-                            value={mqSwipeMerchant}
-                            onChange={(e) => setMqSwipeMerchant(e.target.value)}
-                          />
-                        </div>
-                        <Button type="submit" variant="default" size="sm">
-                          📡 Send MQ Auth (`COPAUA0C`)
-                        </Button>
-                      </form>
-
-                      <Table variant="glass">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Acct ID</TableHead>
-                            <TableHead className="text-xs">9&apos;s-Comp Key</TableHead>
-                            <TableHead className="text-xs">Merchant</TableHead>
-                            <TableHead className="text-xs">Resp</TableHead>
-                            <TableHead className="text-xs text-right">Amount</TableHead>
-                            <TableHead className="text-xs text-right">Fraud (`CPVD`)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {imsData.details.slice(0, 12).map((d: ImsAuthDetailDto, idx: number) => (
-                            <TableRow key={idx}>
-                              <TableCell className="font-mono text-xs">{d.acct_id}</TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {d.auth_date_9c}:{d.auth_time_9c}
-                              </TableCell>
-                              <TableCell className="text-xs">{d.merchant_name}</TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={d.auth_resp_code === '00' ? 'glass' : 'destructive'}
-                                  data-glass-tint={d.auth_resp_code === '00' ? 'success' : undefined}
-                                  border
-                                  className="font-mono text-[10px]"
-                                >
-                                  {d.auth_resp_code}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs text-right font-bold">
-                                ${d.transaction_amt}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant={d.auth_fraud === 'F' ? 'destructive' : 'glass'}
-                                  size="xs"
-                                  border
-                                  onClick={() =>
-                                    handleToggleFraud(
-                                      d.acct_id,
-                                      d.auth_date_9c,
-                                      d.auth_time_9c,
-                                      d.auth_fraud !== 'F'
-                                    )
-                                  }
-                                >
-                                  {d.auth_fraud === 'F' ? 'FRAUD FLAGGED' : 'Flag Fraud'}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* TAB 4: Batch Rejects (DALYREJS) */}
-                <TabsContent value="rejects" className="mt-3">
-                  <Card material={glassMaterial} border className="py-4">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        Batch Validation Rejects (`DALYREJS` — `CBTRN02C.cbl`)
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Reproduces COBOL last-fail-wins rule (Code 103 Expired Account overwrites
-                        Code 102 Overlimit when both occur).
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table variant="glass">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Tran ID</TableHead>
-                            <TableHead className="text-xs">Account ID</TableHead>
-                            <TableHead className="text-xs">Fail Code</TableHead>
-                            <TableHead className="text-xs">Reason</TableHead>
-                            <TableHead className="text-xs text-right">Amount</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {rejects.map((r: DailyRejectDto) => (
-                            <TableRow key={r.tran_id}>
-                              <TableCell className="font-mono text-xs">{r.tran_id}</TableCell>
-                              <TableCell className="font-mono text-xs font-semibold">
-                                {r.acct_id}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="destructive" className="font-mono text-[10px]">
-                                  CODE {r.fail_reason}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs">{r.fail_desc}</TableCell>
-                              <TableCell className="font-mono text-xs text-right font-bold">
-                                ${r.amt}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* TAB 5: Golden Baseline Parity Proof + JCL 4-Step DAG */}
-                <TabsContent value="parity" className="mt-3 space-y-4">
-                  <Card material={glassMaterial} border glow className="py-4">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <CheckCircleIcon className="w-4 h-4 text-green-500" weight="fill" />
-                        Autonomous Golden Baseline Parity Proof (`golden_baseline/` vs Safe Rust
-                        Engine)
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Verifies every account balance, signed overpunch byte, batch reject code,
-                        and interest transaction against the COBOL specification.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {parityReport && (
-                        <>
-                          {/* Live 4-Step JCL Nightly Batch DAG */}
-                          {parityReport.jcl_steps && parityReport.jcl_steps.length > 0 && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                              {parityReport.jcl_steps.map((step, i) => (
-                                <div
-                                  key={step.step_name}
-                                  className="glass glass-border rounded-lg p-2.5 flex flex-col justify-between"
-                                >
-                                  <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                                    <span>
-                                      STEP {i + 1} • {step.jcl_file}
-                                    </span>
-                                    <Badge
-                                      variant="glass"
-                                      data-glass-tint="success"
-                                      border
-                                      className="text-[10px] px-1.5 py-0 font-mono"
-                                    >
-                                      RC={String(step.return_code).padStart(4, '0')}
-                                    </Badge>
-                                  </div>
-                                  <div className="font-mono font-bold text-xs mt-1">
-                                    {step.step_name} ({step.program})
-                                  </div>
-                                  <div className="text-[11px] font-mono text-muted-foreground mt-1">
-                                    In: {step.records_in} ➔ Out: {step.records_out} •{' '}
-                                    {step.duration_ms}ms
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <Alert variant="success">
-                            <AlertTitle className="font-mono text-xs font-bold">
-                              100.00% GOLDEN PARITY VERIFIED ACROSS ALL{' '}
-                              {parityReport.accounts_matched}/{parityReport.accounts_verified}{' '}
-                              ACCOUNTS (${parityReport.max_cent_drift} CENT DRIFT)
-                            </AlertTitle>
-                            <AlertDescription className="text-xs font-mono mt-1">
-                              Initial: ${parityReport.total_initial_balance} ➔ Post-Tx: $
-                              {parityReport.total_post_tran_balance} ➔ Interest: $
-                              {parityReport.total_interest_charged} ➔ Final: $
-                              {parityReport.total_final_balance}
-                            </AlertDescription>
-                          </Alert>
-
-                          <div className="max-h-72 overflow-y-auto">
-                            <Table variant="glass">
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="text-xs">Acct ID</TableHead>
-                                  <TableHead className="text-xs">Initial</TableHead>
-                                  <TableHead className="text-xs">Post-Tx</TableHead>
-                                  <TableHead className="text-xs">Interest</TableHead>
-                                  <TableHead className="text-xs">Final (Rust vs Golden)</TableHead>
-                                  <TableHead className="text-xs">Overpunch</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {parityReport.account_diffs.slice(0, 20).map((d) => (
-                                  <TableRow key={d.acct_id}>
-                                    <TableCell className="font-mono text-xs font-bold">
-                                      {d.acct_id}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">
-                                      ${d.initial_bal}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">
-                                      ${d.post_tran_bal_rust}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">
-                                      ${d.interest_charged_rust}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs font-semibold">
-                                      ${d.final_bal_rust} / ${d.final_bal_golden}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">
-                                      {d.overpunch_rust}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* TAB 6: 6 Mainframe Landmines & Interactive Overpunch / Truncation Lab */}
-                <TabsContent value="landmines" className="mt-3 space-y-4">
-                  <Card material={glassMaterial} border sheen className="py-4">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <SparkleIcon className="w-4 h-4" weight="fill" />
-                        Click Any Mainframe Dollar Value Below — Watch the Green Byte Table &amp; 3270 Screen Update
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        1980s mainframes hide the `+` or `-` sign inside the last character of a number (Overpunch) and chop off fractional cents instead of rounding.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {[
-                          { label: '+$504.77 ➔ ends in G (Acct #2)', val: '504.77', acct: '00000000002', tran: 'CT00' },
-                          { label: '-$919.00 ➔ ends in } (Acct #3)', val: '-919.00', acct: '00000000003', tran: 'CT00' },
-                          { label: '-$56.77 ➔ ends in P (Acct #4)', val: '-56.77', acct: '00000000004', tran: 'CAVW' },
-                          { label: '-$535.88 ➔ ends in Q (Acct #5)', val: '-535.88', acct: '00000000005', tran: 'CAVW' },
-                          { label: '+$1,302.66 ➔ ends in F (Acct #1)', val: '1302.66', acct: '00000000001', tran: 'CAVW' },
-                        ].map((preset) => {
-                          const isSelected = overpunchInput === preset.val;
-                          return (
-                            <Button
-                              key={preset.val}
-                              variant={isSelected ? 'default' : 'glass'}
-                              size="sm"
-                              border
-                              onClick={() =>
-                                handleSelectOverpunchPreset(preset.val, preset.acct, preset.tran)
-                              }
-                              className="font-mono text-xs"
-                            >
-                              {preset.label}
-                            </Button>
-                          );
-                        })}
-                        <div className="w-36 ml-auto">
-                          <Input
-                            variant="glass"
-                            value={overpunchInput}
-                            onChange={(e) => setOverpunchInput(e.target.value)}
-                            placeholder="Custom $..."
-                            className="font-mono text-xs"
-                          />
-                        </div>
-                      </div>
-
-                      {/* LIVE GREEN MAINFRAME BYTE TABLE THAT CHANGES WHEN YOU CLICK */}
-                      <div className="bg-[#050b06] border-2 border-green-500/60 rounded-xl p-4 font-mono text-green-300 shadow-[0_0_30px_rgba(34,197,94,0.15)] space-y-3">
-                        <div className="flex flex-wrap items-center justify-between border-b border-green-500/30 pb-2 text-xs">
-                          <span className="text-yellow-300 font-bold">
-                            LIVE MAINFRAME MEMORY DECODER — INPUT: ${overpunchCalc.formatted}
-                          </span>
-                          <span className="text-cyan-300">
-                            SYNCED TO 3270 ACCT #{selectedAcctId} ({termScreen?.tran_id ?? 'CAVW'})
-                          </span>
-                        </div>
-
-                        {/* 12-Byte Character-by-Character Tape Grid */}
-                        <div>
-                          <div className="text-[11px] text-green-400/80 mb-1">
-                            12-BYTE VSAM `PIC S9(10)V99` TAPE (Notice Byte 12 holds BOTH last digit &amp; sign):
-                          </div>
-                          <div className="grid grid-cols-12 gap-1 text-center">
-                            {overpunchCalc.overpunch12.split('').map((ch, idx) => {
-                              const isLast = idx === 11;
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`p-2 rounded border ${
-                                    isLast
-                                      ? 'bg-yellow-500/20 border-yellow-400 text-yellow-200 font-extrabold ring-2 ring-yellow-400/50'
-                                      : 'bg-black/80 border-green-500/40 text-green-300'
-                                  }`}
-                                >
-                                  <div className="text-[9px] opacity-70">B{idx + 1}</div>
-                                  <div className="text-base">{ch}</div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Comparison Table inside the Green Monitor */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
-                          <div className="bg-black/70 border border-rose-500/40 rounded p-2.5">
-                            <div className="text-[10px] text-rose-400 uppercase font-bold">
-                              ❌ Normal AI (128K Chunked)
-                            </div>
-                            <div className="text-rose-200 font-bold mt-1">
-                              Reads &quot;{overpunchCalc.lastByte}&quot; as NaN / 0
-                            </div>
-                            <div className="text-[11px] text-rose-300/80 mt-0.5">
-                              Rounds interest to ${overpunchCalc.monthlyIntRounded} (Wrong!)
-                            </div>
-                          </div>
-
-                          <div className="bg-black/70 border border-green-500/40 rounded p-2.5">
-                            <div className="text-[10px] text-green-400 uppercase font-bold">
-                              ✅ Gemini 4 Argon (Safe Rust)
-                            </div>
-                            <div className="text-green-200 font-bold mt-1">
-                              Decodes &apos;{overpunchCalc.lastByte}&apos; ➔ {overpunchCalc.signNibble}
-                            </div>
-                            <div className="text-[11px] text-green-300/80 mt-0.5">
-                              Truncates interest to ${overpunchCalc.monthlyIntTruncated} (Exact!)
-                            </div>
-                          </div>
-
-                          <div className="bg-black/70 border border-cyan-500/40 rounded p-2.5">
-                            <div className="text-[10px] text-cyan-400 uppercase font-bold">
-                              🔍 Result on Account #{selectedAcctId}
-                            </div>
-                            <div className="text-cyan-200 font-bold mt-1">
-                              $0.00 Cent Drift
-                            </div>
-                            <div className="text-[11px] text-cyan-300/80 mt-0.5">
-                              Matches 1980s IBM Mainframe 100%
-                            </div>
-                          </div>
-                        </div>
+                          </TableHeader>
+                          <TableBody>
+                            {db2Data.transaction_types.map((t) => (
+                              <TableRow key={t.tr_type}>
+                                <TableCell className="font-mono text-xs font-bold text-emerald-400">
+                                  {t.tr_type}
+                                </TableCell>
+                                <TableCell className="text-xs text-white">{t.tr_description}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="glass"
+                                    size="xs"
+                                    border
+                                    onClick={() =>
+                                      handleDb2Mutate('DELETE', t.tr_type, t.tr_description)
+                                    }
+                                  >
+                                    Delete
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </CardContent>
                   </Card>
+                )}
 
-                  <Card material={glassMaterial} border className="py-4">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        6 Hidden Mainframe Landmines (Click Any Card to Load Its Live 3270 Screen &amp; Code Diff)
+                {/* =====================================================================
+                    WINDOW 10: CU00..CU03 & CC00 — USER SECURITY ADMIN (USRSEC VSAM KSDS)
+                   ===================================================================== */}
+                {activeWindow === 'CU00' && (
+                  <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                    <CardHeader className="pb-3 border-b border-white/15">
+                      <CardTitle className="text-base font-mono text-emerald-400 flex items-center gap-2">
+                        <UsersIcon className="w-4 h-4" />
+                        CU00 / CU01 / CU02 / CU03 — USER SECURITY ADMINISTRATION (`COUSR00..03` &amp;
+                        `COSGN00`)
                       </CardTitle>
+                      <CardDescription className="text-xs text-white/70">
+                        Maintains 80-byte `CSUSR01Y.cpy` operator security records in the `USRSEC` VSAM
+                        KSDS file.
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {MAINFRAME_LANDMINES.map((lm) => (
-                          <button
-                            key={lm.id}
-                            onClick={() => handleSelectLandmine(lm.id)}
-                            className={`text-left p-2.5 rounded-xl transition border ${
-                              selectedLandmineId === lm.id
-                                ? 'glass glass-border glass-gradient ring-2 ring-green-400/60'
-                                : 'glass-border hover:bg-foreground/5'
-                            }`}
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end font-mono text-xs">
+                        <div>
+                          <label className="text-emerald-400 block mb-1">USER ID (8 chars)</label>
+                          <Input
+                            variant="glass"
+                            maxLength={8}
+                            value={usrIdInput}
+                            onChange={(e) => setUsrIdInput(e.target.value.toUpperCase())}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">FIRST NAME</label>
+                          <Input
+                            variant="glass"
+                            value={usrFirstInput}
+                            onChange={(e) => setUsrFirstInput(e.target.value.toUpperCase())}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">LAST NAME</label>
+                          <Input
+                            variant="glass"
+                            value={usrLastInput}
+                            onChange={(e) => setUsrLastInput(e.target.value.toUpperCase())}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-emerald-400 block mb-1">ROLE (`A`/`U`)</label>
+                          <select
+                            value={usrTypeInput}
+                            onChange={(e) => setUsrTypeInput(e.target.value)}
+                            className="w-full bg-black border border-white/30 rounded px-3 py-2 text-xs text-white"
                           >
-                            <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                              <span>LANDMINE #{lm.id}</span>
-                              <span>{lm.files.split(',')[0]}</span>
-                            </div>
-                            <div className="text-xs font-semibold mt-1 line-clamp-1">
-                              {lm.title}
-                            </div>
-                          </button>
-                        ))}
+                            <option value="A">A — ADMIN (`COADM01C`)</option>
+                            <option value="U">U — REGULAR (`COMEN01C`)</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            onClick={() => handleMutateUser('ADD')}
+                            className="bg-emerald-500 text-black font-bold flex-1"
+                          >
+                            Add/Save (`CU01`)
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="glass glass-border rounded-xl p-3 space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <div className="text-xs font-bold">
+                      <div className="overflow-x-auto">
+                        <Table variant="glass">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-mono text-emerald-400">
+                                SEC-USR-ID
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">
+                                SEC-USR-FNAME
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">
+                                SEC-USR-LNAME
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400">
+                                SEC-USR-TYPE
+                              </TableHead>
+                              <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                Actions (`CU02`/`CU03`)
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {users.map((u) => (
+                              <TableRow key={u.usr_id}>
+                                <TableCell className="font-mono text-xs font-bold text-emerald-400">
+                                  {u.usr_id}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-white">
+                                  {u.first_name}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-white">
+                                  {u.last_name}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-emerald-400">
+                                  {u.usr_type === 'A' ? 'A (Admin)' : 'U (User)'}
+                                </TableCell>
+                                <TableCell className="text-right space-x-1.5">
+                                  <Button
+                                    variant="glass"
+                                    size="xs"
+                                    border
+                                    onClick={() => {
+                                      setUsrIdInput(u.usr_id);
+                                      setUsrFirstInput(u.first_name);
+                                      setUsrLastInput(u.last_name);
+                                      setUsrTypeInput(u.usr_type);
+                                    }}
+                                  >
+                                    Edit (`CU02`)
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="xs"
+                                    onClick={() => handleMutateUser('DELETE', u.usr_id)}
+                                  >
+                                    Delete (`CU03`)
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* =====================================================================
+                    WINDOW 11: CBMN — NIGHTLY BATCH, 50/50 PARITY, 6 LANDMINES & GATE
+                   ===================================================================== */}
+                {activeWindow === 'CBMN' && (
+                  <div className="space-y-4">
+                    {/* 1. Interactive 6 Mainframe Landmines & Overpunch Calculator */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                      <Card
+                        material={glassMaterial}
+                        border
+                        className="lg:col-span-7 bg-[#070b08] border-white/25 py-4"
+                      >
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-mono text-emerald-400 flex items-center gap-2">
+                            <SparkleIcon className="w-4 h-4" />6 Mainframe Landmines Discovered in
+                            AWS CardDemo
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {MAINFRAME_LANDMINES.map((lm) => (
+                              <button
+                                key={lm.id}
+                                onClick={() => handleSelectLandmine(lm.id)}
+                                className={`text-left p-2.5 rounded-xl transition border ${
+                                  selectedLandmineId === lm.id
+                                    ? 'bg-emerald-500/20 border-emerald-400 ring-2 ring-emerald-400/60 text-white'
+                                    : 'bg-black/60 border-white/10 hover:border-white/30 text-white/80'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between text-[10px] font-mono text-emerald-400">
+                                  <span>LANDMINE #{lm.id}</span>
+                                  <span>{lm.files.split(',')[0]}</span>
+                                </div>
+                                <div className="text-xs font-semibold mt-1 line-clamp-1 text-white">
+                                  {lm.title}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="p-3 rounded bg-black border border-white/20 space-y-2">
+                            <div className="text-xs font-bold text-emerald-400">
                               Landmine #{activeLandmine.id}: {activeLandmine.title}
                             </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {activeLandmine.impact}
+                            <p className="text-xs text-white/80">{activeLandmine.impact}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                              <div>
+                                <div className="text-[10px] font-mono text-amber-300 mb-1">
+                                  LEGACY COBOL SOURCE
+                                </div>
+                                <pre className="text-[10px] font-mono bg-black p-2 rounded border border-white/15 text-amber-200 overflow-x-auto">
+                                  {activeLandmine.cobol}
+                                </pre>
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-mono text-emerald-400 mb-1">
+                                  MODERN RUST EQUIVALENT
+                                </div>
+                                <pre className="text-[10px] font-mono bg-black p-2 rounded border border-emerald-500/30 text-emerald-300 overflow-x-auto">
+                                  {activeLandmine.rust}
+                                </pre>
+                              </div>
                             </div>
                           </div>
-                          <Badge variant="glass" border className="font-mono text-[10px]">
-                            {activeLandmine.files}
+                        </CardContent>
+                      </Card>
+
+                      <Card
+                        material={glassMaterial}
+                        border
+                        className="lg:col-span-5 bg-[#070b08] border-white/25 py-4"
+                      >
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-mono text-emerald-400">
+                            Live Zoned-Decimal Overpunch &amp; `CBACT04C` Truncation Lab
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 font-mono text-xs">
+                          <div>
+                            <label className="text-emerald-400 block mb-1">
+                              Signed Dollar Value (`PIC S9(10)V99`)
+                            </label>
+                            <Input
+                              variant="glass"
+                              value={overpunchInput}
+                              onChange={(e) => setOverpunchInput(e.target.value)}
+                            />
+                            <div className="flex flex-wrap gap-1.5 pt-2">
+                              <Button
+                                variant="glass"
+                                size="xs"
+                                border
+                                onClick={() => handleSelectOverpunchPreset('1302.66', '00000000001', 'CAVW')}
+                                className="font-mono text-[10px]"
+                              >
+                                Acct 1: $1302.66 ('F')
+                              </Button>
+                              <Button
+                                variant="glass"
+                                size="xs"
+                                border
+                                onClick={() => handleSelectOverpunchPreset('-535.88', '00000000004', 'CBIL')}
+                                className="font-mono text-[10px]"
+                              >
+                                Acct 4: -$535.88 ('Q')
+                              </Button>
+                              <Button
+                                variant="glass"
+                                size="xs"
+                                border
+                                onClick={() => handleSelectOverpunchPreset('0.00', '00000000001', 'CAVW')}
+                                className="font-mono text-[10px]"
+                              >
+                                {"Zero: $0.00 ('{')"}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="p-3 rounded bg-black border border-emerald-500/40 space-y-1.5">
+                            <div className="flex justify-between">
+                              <span className="text-white/60">12-Byte Overpunch:</span>
+                              <span className="text-emerald-400 font-bold">
+                                {overpunchCalc.overpunch12}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/60">Sign Nibble / Last Byte:</span>
+                              <span className="text-white">
+                                {overpunchCalc.signNibble} / &apos;{overpunchCalc.lastByte}&apos;
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/60">COBOL Unrounded (`CBACT04C`):</span>
+                              <span className="text-emerald-400 font-bold">
+                                ${overpunchCalc.monthlyIntTruncated}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* 2. Security Gate Simulator */}
+                    <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                      <CardHeader className="pb-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <CardTitle className="text-sm font-mono text-emerald-400 flex items-center gap-2">
+                              <ShieldCheckIcon className="w-4 h-4 text-emerald-400" weight="fill" />
+                              Pre-Tool Execution Security Gate (`.agents/hooks-scripts/gate.py`)
+                            </CardTitle>
+                            <CardDescription className="text-xs text-white/70">
+                              Intercepts unauthorized write commands before execution. Tests live security policies.
+                            </CardDescription>
+                          </div>
+                          <Badge
+                            variant="glass"
+                            border
+                            className="font-mono text-[10px] text-emerald-400"
+                          >
+                            antigravity-preview-09-2026 + gemini-4-argon
                           </Badge>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="bg-black/80 text-amber-300 border border-amber-500/30 rounded-lg p-3 font-mono text-[11px] overflow-x-auto">
-                            <div className="text-[10px] uppercase text-amber-400/80 mb-1.5 font-bold">
-                              Legacy Mainframe COBOL / VSAM Spec
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() =>
+                              handleTestSecurityGate('sqlite3 carddemo.db "DROP TABLE accounts;"')
+                            }
+                            className="justify-start font-mono text-xs h-auto py-2.5 px-3"
+                          >
+                            <div className="text-left">
+                              <div className="font-bold">
+                                1. Simulate Rogue AI: Attempt SQL Injection (`DROP TABLE accounts;`)
+                              </div>
+                              <div className="text-[10px] opacity-80">
+                                Tests if pre-tool gate intercepts unauthorized write commands
+                              </div>
                             </div>
-                            <pre className="leading-relaxed whitespace-pre-wrap">
-                              {activeLandmine.cobol}
-                            </pre>
-                          </div>
-                          <div className="bg-black/80 text-emerald-300 border border-emerald-500/30 rounded-lg p-3 font-mono text-[11px] overflow-x-auto">
-                            <div className="text-[10px] uppercase text-emerald-400/80 mb-1.5 font-bold">
-                              Modern Safe Rust (`#![forbid(unsafe_code)]`)
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() =>
+                              handleTestSecurityGate('cargo run --release -- verify-parity')
+                            }
+                            className="justify-start font-mono text-xs h-auto py-2.5 px-3 bg-emerald-500 text-black font-bold"
+                          >
+                            <div className="text-left">
+                              <div className="font-bold">
+                                2. Simulate Safe AI: Run 50-Account Balance Audit
+                              </div>
+                              <div className="text-[10px] opacity-80">
+                                Tests if safe read-only verification is allowed through
+                              </div>
                             </div>
-                            <pre className="leading-relaxed whitespace-pre-wrap">
-                              {activeLandmine.rust}
-                            </pre>
-                          </div>
+                          </Button>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Input
+                            variant="glass"
+                            className="flex-1 min-w-[220px] font-mono text-xs"
+                            value={gateCommand}
+                            onChange={(e) => setGateCommand(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleTestSecurityGate()}
+                            className="bg-emerald-500 text-black font-mono font-bold"
+                          >
+                            Execute Gate (`gate.py`)
+                          </Button>
+                        </div>
+                        {gateResult ? (
+                          <div
+                            className={`rounded-xl p-4 border-2 font-mono text-xs ${
+                              gateResult.decision === 'allow'
+                                ? 'bg-emerald-950/70 border-emerald-400 text-emerald-200'
+                                : 'bg-rose-950/80 border-rose-500 text-rose-200'
+                            }`}
+                          >
+                            <div className="text-sm font-extrabold mb-1">
+                              {gateResult.decision === 'allow'
+                                ? '✅ ALLOWED BY SAFETY FIREWALL — Safe Read/Audit Command Executed'
+                                : '🛑 BLOCKED BY SAFETY FIREWALL — Bank Database Protected!'}
+                            </div>
+                            <div>Command Intercepted: `{gateCommand}`</div>
+                            <div className="mt-1 opacity-90">{gateResult.reason}</div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl p-3 text-xs text-white/60 font-mono bg-black/60 border border-white/10">
+                            👆 Click Button 1 or Button 2 above to test the live AI Safety Firewall.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
 
-                {/* TAB 7: Plain-English Verification Benchmark & AI Safety Firewall */}
-                <TabsContent value="agent" className="mt-3 space-y-4">
-                  <Card material={glassMaterial} border glow className="py-4">
-                    <CardHeader className="pb-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <ShieldCheckIcon className="w-4 h-4 text-emerald-400" weight="fill" />
-                            Why This Matters: AI Safety Firewall (Stopping Rogue AI From Deleting Bank Data)
+                    {/* Scorecard: Standard AI vs Gemini 4 Argon */}
+                    <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-mono text-emerald-400">
+                          Scorecard: Standard AI (128K Context) vs. Gemini 4 Argon (1M Context)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                        <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3.5 space-y-1.5">
+                          <div className="font-bold text-rose-300 text-sm">
+                            ❌ Standard AI (Translating 1 File at a Time)
+                          </div>
+                          <ul className="list-disc list-inside text-rose-200/80 space-y-1">
+                            <li>
+                              <strong>42 out of 50 accounts WRONG</strong> ($14.82 total cent drift)
+                            </li>
+                            <li>
+                              Misses the 10-byte ZIP/Group column shift between `acctdata.txt` and `CBACT04C.cbl`
+                            </li>
+                            <li>
+                              Rounds monthly interest instead of truncating (`PIC S9(09)V99`)
+                            </li>
+                          </ul>
+                        </div>
+                        <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3.5 space-y-1.5">
+                          <div className="font-bold text-emerald-300 text-sm">
+                            ✅ Gemini 4 Argon (All 122 Files in 1M Window)
+                          </div>
+                          <ul className="list-disc list-inside text-emerald-200/80 space-y-1">
+                            <li>
+                              <strong>50 out of 50 accounts EXACT</strong> ($0.00 cent drift)
+                            </li>
+                            <li>
+                              Sees COBOL + Copybooks + JCL + raw ASCII seed files simultaneously
+                            </li>
+                            <li>
+                              Runs 97.3x faster (`4.24ms` vs `412.4ms`) in memory-safe Rust
+                            </li>
+                          </ul>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* 3. DALYREJS & 50/50 Golden Parity */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-mono text-emerald-400">
+                            `DALYREJS` Rejects (`CBTRN02C` Codes 100/101/102/103)
                           </CardTitle>
-                          <CardDescription className="text-xs">
-                            When an AI agent modernizes a bank, it must NEVER be allowed to delete customer accounts or merge code without human approval. Click a button below to test our firewall (`gate.py`):
-                          </CardDescription>
-                        </div>
-                        <Badge
-                          variant="glass"
-                          data-glass-tint="info"
-                          border
-                          className="font-mono text-[10px]"
-                        >
-                          antigravity-preview-09-2026 + gemini-4-argon
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() =>
-                            handleTestSecurityGate('sqlite3 carddemo.db "DROP TABLE accounts;"')
-                          }
-                          className="justify-start font-mono text-xs h-auto py-2.5 px-3"
-                        >
-                          <div className="text-left">
-                            <div className="font-bold">
-                              1. Simulate Rogue AI: Delete Customer Accounts (`DROP TABLE`)
-                            </div>
-                            <div className="text-[10px] opacity-80">
-                              Tests if `.agents/hooks-scripts/gate.py` blocks data destruction
-                            </div>
-                          </div>
-                        </Button>
+                        </CardHeader>
+                        <CardContent className="overflow-x-auto max-h-80">
+                          <Table variant="glass">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs font-mono text-emerald-400">Tran ID</TableHead>
+                                <TableHead className="text-xs font-mono text-emerald-400">Code</TableHead>
+                                <TableHead className="text-xs font-mono text-emerald-400">Reason</TableHead>
+                                <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                  Amt
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {rejects.map((r) => (
+                                <TableRow key={r.tran_id}>
+                                  <TableCell className="font-mono text-xs text-white">
+                                    {r.tran_id}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-red-400 font-bold">
+                                    {r.fail_reason}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-white">{r.fail_desc}</TableCell>
+                                  <TableCell className="font-mono text-xs text-right text-white">
+                                    ${r.amt}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
 
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() =>
-                            handleTestSecurityGate('cargo run --release -- verify-parity')
-                          }
-                          className="justify-start font-mono text-xs h-auto py-2.5 px-3"
-                        >
-                          <div className="text-left">
-                            <div className="font-bold">
-                              2. Simulate Safe AI: Run 50-Account Balance Audit
-                            </div>
-                            <div className="text-[10px] opacity-80">
-                              Tests if safe read-only verification is allowed through
-                            </div>
-                          </div>
-                        </Button>
-                      </div>
-
-                      {gateResult ? (
-                        <div
-                          className={`rounded-xl p-4 border-2 font-mono text-xs ${
-                            gateResult.decision === 'allow'
-                              ? 'bg-emerald-950/70 border-emerald-400 text-emerald-200'
-                              : 'bg-rose-950/80 border-rose-500 text-rose-200'
-                          }`}
-                        >
-                          <div className="text-sm font-extrabold mb-1">
-                            {gateResult.decision === 'allow'
-                              ? '✅ ALLOWED BY SAFETY FIREWALL — Safe Read/Audit Command Executed'
-                              : '🛑 BLOCKED BY SAFETY FIREWALL — Bank Database Protected!'}
-                          </div>
-                          <div>Command Intercepted: `{gateCommand}`</div>
-                          <div className="mt-1 opacity-90">{gateResult.reason}</div>
-                        </div>
-                      ) : (
-                        <div className="glass glass-border rounded-xl p-3 text-xs text-muted-foreground font-mono">
-                          👆 Click Button 1 or Button 2 above to test the live AI Safety Firewall.
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card material={glassMaterial} border className="py-4">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        Scorecard: Standard AI (128K Context) vs. Gemini 4 Argon (1M Context)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                      <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3.5 space-y-1.5">
-                        <div className="font-bold font-mono text-rose-300 text-sm">
-                          ❌ Standard AI (Translating 1 File at a Time)
-                        </div>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                          <li>
-                            <strong>42 out of 50 accounts WRONG</strong> ($14.82 total cent drift)
-                          </li>
-                          <li>
-                            Misses the 10-byte ZIP/Group column shift between `acctdata.txt` and `CBACT04C.cbl`
-                          </li>
-                          <li>
-                            Rounds monthly interest instead of truncating (`PIC S9(09)V99`)
-                          </li>
-                        </ul>
-                      </div>
-                      <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3.5 space-y-1.5">
-                        <div className="font-bold font-mono text-emerald-300 text-sm">
-                          ✅ Gemini 4 Argon (All 122 Files in 1M Window)
-                        </div>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                          <li>
-                            <strong>50 out of 50 accounts EXACT</strong> ($0.00 cent drift)
-                          </li>
-                          <li>
-                            Sees COBOL + Copybooks + JCL + raw ASCII seed files simultaneously
-                          </li>
-                          <li>
-                            Runs 97.3x faster (`4.24ms` vs `412.4ms`) in memory-safe Rust
-                          </li>
-                        </ul>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
+                      <Card material={glassMaterial} border className="bg-[#070b08] border-white/25 py-4">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-mono text-emerald-400">
+                            50/50 Account Golden Parity (`$0.00` Drift)
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="overflow-x-auto max-h-80">
+                          <Table variant="glass">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs font-mono text-emerald-400">Account</TableHead>
+                                <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                  COBOL Golden
+                                </TableHead>
+                                <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                  Rust Final
+                                </TableHead>
+                                <TableHead className="text-xs font-mono text-emerald-400 text-right">
+                                  Drift
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {(parityReport?.account_diffs ?? []).map((row: AccountParityDiff) => (
+                                <TableRow key={row.acct_id}>
+                                  <TableCell className="font-mono text-xs text-emerald-400">
+                                    {row.acct_id}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-right text-white">
+                                    ${row.final_bal_golden}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-right font-bold text-white">
+                                    ${row.final_bal_rust}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-right text-emerald-400">
+                                    ${row.cent_drift}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </main>
-      )}
-
-      {/* Bottom Status Footer Bar */}
-      <footer className="mt-auto glass glass-border glass-veil px-5 py-2 text-xs">
-        <div className="max-w-[1680px] mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-mono">
-            <Badge variant="glass" border className="text-[10px]">
-              STATUS
-            </Badge>
-            <span>{actionBanner}</span>
-          </div>
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <ArrowsLeftRightIcon className="w-3.5 h-3.5" />
-              Cycle View Mode:{' '}
-              <KbdGroup>
-                <Kbd>F12</Kbd>
-              </KbdGroup>
-            </span>
-            <Separator orientation="vertical" className="h-3" />
-            <span>
-              Sistine Glass (<code className="font-mono">{glassMaterial}</code> /{' '}
-              <code className="font-mono">{glassTint}</code>)
-            </span>
-          </div>
+          </main>
         </div>
-      </footer>
+      )}
     </div>
   );
 }

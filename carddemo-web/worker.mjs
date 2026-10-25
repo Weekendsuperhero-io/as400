@@ -3,6 +3,29 @@ import snapshot from './worker-snapshot.json';
 // Deep clone mutable state per Worker isolate
 let state = JSON.parse(JSON.stringify(snapshot));
 
+function ensureExtendedState() {
+  if (!state.cards) {
+    state.cards = state.accounts.map((a) => ({
+      card_num: a.card_num,
+      acct_id: a.acct_id,
+      cust_id: a.cust_id || '000000001',
+      cvv_cd: '123',
+      embossed_name: String(a.customer_name || '').toUpperCase(),
+      expiration_date: a.expiration_date,
+      active_status: a.active_status || 'Y',
+    }));
+  }
+  if (!state.users) {
+    state.users = [
+      { usr_id: 'ADMIN001', first_name: 'MARGARET', last_name: 'HAMILTON', usr_type: 'A' },
+      { usr_id: 'USER0001', first_name: 'GRACE', last_name: 'HOPPER', usr_type: 'U' },
+      { usr_id: 'USER0002', first_name: 'KEN', last_name: 'THOMPSON', usr_type: 'U' },
+      { usr_id: 'USER0003', first_name: 'DENNIS', last_name: 'RITCHIE', usr_type: 'U' },
+    ];
+  }
+}
+ensureExtendedState();
+
 const POS_OVERPUNCH = ['{', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 const NEG_OVERPUNCH = ['}', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
 
@@ -90,6 +113,7 @@ function executeBillPayState(acctId, confirm = 'Y') {
 }
 
 function renderDynamicTerminal(reqBody) {
+  ensureExtendedState();
   let tran = String(reqBody.tran_id || 'CAVW').trim().toUpperCase();
   const aid = String(reqBody.aid_key || 'ENTER').trim().toUpperCase();
   const inputs = reqBody.inputs || {};
@@ -108,10 +132,15 @@ function renderDynamicTerminal(reqBody) {
         '1': 'CAVW', '01': 'CAVW',
         '2': 'CAUP', '02': 'CAUP',
         '3': 'CCLI', '03': 'CCLI',
-        '4': 'CT00', '04': 'CT00',
-        '5': 'CBIL', '05': 'CBIL',
-        '6': 'CTLI', '06': 'CTLI',
-        '7': 'CPVS', '07': 'CPVS',
+        '4': 'CCDL', '04': 'CCDL',
+        '5': 'CCUP', '05': 'CCUP',
+        '6': 'CT00', '06': 'CT00',
+        '7': 'CT01', '07': 'CT01',
+        '8': 'CT02', '08': 'CT02',
+        '9': 'CR00', '09': 'CR00',
+        '10': 'CBIL',
+        '11': 'CPVS',
+        '12': 'CTLI',
       };
       if (mapOpt[opt]) {
         tran = mapOpt[opt];
@@ -124,7 +153,7 @@ function renderDynamicTerminal(reqBody) {
   }
 
   if (tran === 'CM00') {
-    const msg = aid === 'PF3' ? 'RETURNED TO MAIN MENU VIA PF3' : 'SELECT AN OPTION (01-07) OR ENTER TRAN ID';
+    const msg = aid === 'PF3' ? 'RETURNED TO MAIN MENU VIA PF3' : 'SELECT AN OPTION (01-12) OR ENTER TRAN ID';
     return {
       tran_id: 'CM00',
       program_name: 'COMEN01C',
@@ -136,22 +165,20 @@ function renderDynamicTerminal(reqBody) {
         'TRAN: CM00      AWS MAINFRAME MODERNIZATION - CARDDEMO        DATE: 10/25/26',
         'PROG: COMEN01C                MAIN MENU                       MAP : COMEN01 ',
         '--------------------------------------------------------------------------------',
+        '  01. ACCOUNT VIEW       (CAVW / COACTVWC)   07. TRANSACTION VIEW   (CT01 / COTRN01C)',
+        '  02. ACCOUNT UPDATE     (CAUP / COACTUPC)   08. TRANSACTION ADD    (CT02 / COTRN02C)',
+        '  03. CREDIT CARD LIST   (CCLI / COCRDLIC)   09. TRANSACTION REPORT (CR00 / CORPT00C)',
+        '  04. CREDIT CARD VIEW   (CCDL / COCRDSLC)   10. BILL PAYMENT       (CBIL / COBIL00C)',
+        '  05. CREDIT CARD UPDATE (CCUP / COCRDUPC)   11. PENDING AUTH VIEW  (CPVS / COPAUS0C)',
+        '  06. TRANSACTION LIST   (CT00 / COTRN00C)   12. DB2 TRAN TYPES     (CTLI / COTRTLIC)',
         '                                                                                ',
-        '    01. ACCOUNT VIEW               (CAVW / COACTVWC - VSAM ACCTDATA + CUSTDATA) ',
-        '    02. ACCOUNT UPDATE             (CAUP / COACTUPC - VSAM ACCTDATA REWRITE)    ',
-        '    03. CREDIT CARD LIST & DETAIL  (CCLI / COCRDLIC - VSAM CARDDATA + CARDAIX)  ',
-        '    04. TRANSACTION LEDGER & ADD   (CT00 / COTRN00C - VSAM TRANSACT KSDS)       ',
-        '    05. ONLINE BILL PAYMENT        (CBIL / COBIL00C - FULL BALANCE SETTLEMENT)  ',
-        '    06. DB2 TRANSACTION TYPES      (CTLI / COTRTLIC - DB2 CURSOR + SQLCODE)     ',
-        '    07. IMS PENDING AUTH & FRAUD   (CPVS / COPAUS0C - IMS PAUTSUM0 + AUTHFRDS)  ',
-        '                                                                                ',
-        '        PLEASE SELECT AN OPTION : [01]                                          ',
+        '        PLEASE SELECT AN OPTION (01-12) : [01]                                  ',
         '                                                                                ',
         `MESSAGE: ${msg}`.padEnd(80, ' '),
         'ENTER=CONTINUE   PF3=SIGN OFF',
       ],
       fields: [
-        { id: 'OPTION', label: 'Menu Option (01-07)', row: 13, col: 35, length: 2, value: '01', editable: true, color: 'green' },
+        { id: 'OPTION', label: 'Menu Option (01-12)', row: 11, col: 43, length: 2, value: '01', editable: true, color: 'green' },
       ],
       status_message: msg,
       sqlcode: null,
@@ -159,31 +186,33 @@ function renderDynamicTerminal(reqBody) {
     };
   }
 
-  if (tran === 'CADM') {
-    const msg = 'CARDDEMO ADMIN MENU (COADM01C)';
+  if (tran === 'CADM' || tran === 'CU00' || tran === 'CU01' || tran === 'CU02' || tran === 'CU03') {
+    const lines = [
+      `TRAN: ${tran}      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COUSR00 `,
+      'PROG: COUSR00C           USER SECURITY ADMINISTRATION         VSAM: USRSEC  ',
+      '--------------------------------------------------------------------------------',
+      '  USER ID      FIRST NAME            LAST NAME             ROLE (A=ADMIN/U=USER)',
+      '--------------------------------------------------------------------------------',
+      ...state.users.map(
+        (u) =>
+          `  ${String(u.usr_id).padEnd(8, ' ')}     ${String(u.first_name).padEnd(20, ' ')}  ${String(u.last_name).padEnd(20, ' ')}  ${u.usr_type}`
+      ),
+      '--------------------------------------------------------------------------------',
+      `MESSAGE: DISPLAYING ${state.users.length} USERS FROM USRSEC VSAM KSDS`.padEnd(80, ' '),
+      'ENTER=REFRESH   PF3=MAIN MENU',
+    ];
     return {
-      tran_id: 'CADM',
-      program_name: 'COADM01C',
-      mapset_name: 'COADM01',
-      map_name: 'COADM1A',
+      tran_id: tran,
+      program_name: 'COUSR00C',
+      mapset_name: 'COUSR00',
+      map_name: 'COUSR0A',
       title_line_1: 'AWS MAINFRAME MODERNIZATION - CARDDEMO',
-      title_line_2: 'ADMINISTRATION MENU (COADM01)',
-      lines: [
-        'TRAN: CADM      AWS MAINFRAME MODERNIZATION - CARDDEMO        DATE: 10/25/26',
-        'PROG: COADM01C              ADMINISTRATION MENU               MAP : COADM01 ',
-        '--------------------------------------------------------------------------------',
-        '    01. USER SECURITY LIST   (CU00 / COUSR00C - USRSEC VSAM KSDS)               ',
-        '    02. DB2 TRAN TYPE MAINT  (CTLI / COTRTLIC - CARDDEMO.TRANSACTION_TYPE)      ',
-        '    03. DB2 TRAN TYPE UPDATE (CTTU / COTRTUPC - SQLCODE -803 / -532 / +100)     ',
-        '    04. IMS FRAUD SUMMARY    (CPVS / COPAUS0C - DBPAUTP0 + DB2 AUTHFRDS)        ',
-        '                                                                                ',
-        `MESSAGE: ${msg}`.padEnd(80, ' '),
-        'ENTER=SELECT   PF3=SIGN OFF',
-      ],
+      title_line_2: 'USER SECURITY ADMIN (COUSR00..03)',
+      lines,
       fields: [
-        { id: 'OPTION', label: 'Admin Option', row: 8, col: 35, length: 2, value: '02', editable: true, color: 'turquoise' },
+        { id: 'USRID', label: 'User ID (8 chars)', row: 4, col: 20, length: 8, value: 'ADMIN001', editable: true, color: 'green' },
       ],
-      status_message: msg,
+      status_message: `DISPLAYING ${state.users.length} USERS FROM USRSEC VSAM KSDS`,
       sqlcode: null,
       pf_keys: 'ENTER=Select  PF3=Return',
     };
@@ -241,10 +270,10 @@ function renderDynamicTerminal(reqBody) {
   if (tran === 'CCLI' || tran === 'CCDL' || tran === 'CCUP') {
     const filterAcct = String(inputs.ACCTID || '').trim();
     const list = filterAcct
-      ? state.accounts.filter((x) => x.acct_id === filterAcct)
-      : state.accounts.slice(0, 10);
+      ? state.cards.filter((x) => x.acct_id === filterAcct)
+      : state.cards.slice(0, 10);
     const lines = [
-      'TRAN: CCLI      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COCRDLI ',
+      `TRAN: ${tran}      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COCRDLI `,
       'PROG: COCRDLIC               CREDIT CARD LIST                 AIX : CARDAIX ',
       `  FILTER BY ACCOUNT ID (CARDAIX): [${filterAcct.padEnd(11, ' ')}]`,
       '--------------------------------------------------------------------------------',
@@ -253,7 +282,7 @@ function renderDynamicTerminal(reqBody) {
     ];
     for (const row of list) {
       lines.push(
-        `  ${row.acct_id.padEnd(11, ' ')}   ${String(row.card_num).padEnd(16, ' ')}   ${String(row.customer_name).slice(0, 22).padEnd(22, ' ')}   ${String(row.expiration_date).padEnd(10, ' ')}    ${row.active_status}`
+        `  ${row.acct_id.padEnd(11, ' ')}   ${String(row.card_num).padEnd(16, ' ')}   ${String(row.embossed_name).slice(0, 22).padEnd(22, ' ')}   ${String(row.expiration_date).padEnd(10, ' ')}    ${row.active_status}`
       );
     }
     const msg = `DISPLAYING ${list.length} CARDS VIA VSAM KSDS / CARDAIX ALTERNATE INDEX`;
@@ -261,12 +290,12 @@ function renderDynamicTerminal(reqBody) {
     lines.push(`MESSAGE: ${msg}`.padEnd(80, ' '));
     lines.push('ENTER=FILTER BY ACCT   PF3=MAIN MENU   PF7=PREV   PF8=NEXT');
     return {
-      tran_id: 'CCLI',
-      program_name: 'COCRDLIC',
-      mapset_name: 'COCRDLI',
+      tran_id: tran,
+      program_name: tran === 'CCUP' ? 'COCRDUPC' : tran === 'CCDL' ? 'COCRDSLC' : 'COCRDLIC',
+      mapset_name: tran === 'CCUP' ? 'COCRDUP' : tran === 'CCDL' ? 'COCRDSL' : 'COCRDLI',
       map_name: 'CCRDLIA',
       title_line_1: 'AWS MAINFRAME MODERNIZATION - CARDDEMO',
-      title_line_2: 'CREDIT CARD LIST (COCRDLI)',
+      title_line_2: 'CREDIT CARD LIST & MAINT (COCRDLI/SL/UP)',
       lines,
       fields: [
         { id: 'ACCTID', label: 'Filter by Account ID (optional)', row: 3, col: 36, length: 11, value: filterAcct, editable: true, color: 'green' },
@@ -277,10 +306,10 @@ function renderDynamicTerminal(reqBody) {
     };
   }
 
-  if (tran === 'CT00' || tran === 'CT01' || tran === 'CT02') {
+  if (tran === 'CT00' || tran === 'CT01' || tran === 'CT02' || tran === 'CR00') {
     const txs = (detail.transactions || []).slice(0, 10);
     const lines = [
-      'TRAN: CT00      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COTRN00 ',
+      `TRAN: ${tran}      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COTRN00 `,
       'PROG: COTRN00C             LIST TRANSACTIONS                  VSAM: TRANSACT',
       `  FILTER ACCOUNT : [${a.acct_id}]`,
       '--------------------------------------------------------------------------------',
@@ -296,12 +325,12 @@ function renderDynamicTerminal(reqBody) {
     lines.push('--------------------------------------------------------------------------------');
     lines.push(`MESSAGE: ${msg}`.padEnd(80, ' '));
     return {
-      tran_id: 'CT00',
-      program_name: 'COTRN00C',
-      mapset_name: 'COTRN00',
+      tran_id: tran,
+      program_name: tran === 'CR00' ? 'CORPT00C' : tran === 'CT02' ? 'COTRN02C' : tran === 'CT01' ? 'COTRN01C' : 'COTRN00C',
+      mapset_name: tran === 'CR00' ? 'CORPT00' : tran === 'CT02' ? 'COTRN02' : tran === 'CT01' ? 'COTRN01' : 'COTRN00',
       map_name: 'COTRN0A',
       title_line_1: 'AWS MAINFRAME MODERNIZATION - CARDDEMO',
-      title_line_2: 'LIST TRANSACTIONS (COTRN00)',
+      title_line_2: 'TRANSACTIONS & REPORTS (COTRN00..02 / CORPT00)',
       lines,
       fields: [
         { id: 'ACCTID', label: 'Filter Account ID', row: 3, col: 20, length: 11, value: a.acct_id, editable: true, color: 'green' },
@@ -495,6 +524,7 @@ function jsonResponse(data, status = 200) {
 
 export default {
   async fetch(request, env) {
+    ensureExtendedState();
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -563,6 +593,135 @@ export default {
           legacy_green_screen_seconds: 54.0,
         });
       }
+    }
+
+    if (pathname === '/api/cards' && request.method === 'GET') {
+      return jsonResponse(state.cards);
+    }
+
+    if (pathname.startsWith('/api/cards/') && request.method === 'PUT') {
+      const cardNum = pathname.split('/').filter(Boolean)[2];
+      const body = await request.json();
+      const card = state.cards.find((c) => c.card_num === cardNum);
+      if (card) {
+        card.embossed_name = String(body.embossed_name || card.embossed_name).toUpperCase();
+        card.expiration_date = String(body.expiration_date || card.expiration_date);
+        card.active_status = String(body.active_status || card.active_status).toUpperCase();
+      }
+      return jsonResponse({
+        card_num: cardNum,
+        acct_id: card ? card.acct_id : '00000000001',
+        embossed_name: card ? card.embossed_name : body.embossed_name,
+        expiration_date: card ? card.expiration_date : body.expiration_date,
+        active_status: card ? card.active_status : body.active_status,
+        message: `CHANGES TO CREDIT CARD ${cardNum} SAVED TO VSAM CARDDATA (COCRDUPC)`,
+      });
+    }
+
+    if (pathname === '/api/transactions' && request.method === 'POST') {
+      const body = await request.json();
+      const acctId = String(body.acct_id || '00000000001').trim();
+      const amtNum = parseFloat(body.amt || '0') || 0;
+      const amtStr = amtNum.toFixed(2);
+      const tranId = `20261025${String(Date.now()).slice(-8)}`;
+      const nowTs = new Date().toISOString().replace('T', '-').slice(0, 26);
+      const acct = state.accounts.find((a) => a.acct_id === acctId) || state.accounts[0];
+      const detail = state.details[acct.acct_id];
+      const nextBal = ((parseFloat(acct.curr_bal || '0') || 0) + amtNum).toFixed(2);
+      acct.curr_bal = nextBal;
+      acct.curr_bal_overpunch = formatOverpunch(nextBal, 12);
+      if (detail) {
+        detail.account.curr_bal = nextBal;
+        detail.account.curr_bal_overpunch = acct.curr_bal_overpunch;
+        detail.account.vsam_fixed_width_preview = buildVsamPreview(detail.account);
+        detail.transactions.unshift({
+          tran_id: tranId,
+          type_cd: body.type_cd || '01',
+          cat_cd: body.cat_cd || '0001',
+          source: body.source || 'ONLINE',
+          description: body.description || 'ONLINE TRANSACTION',
+          amt: amtStr,
+          merchant_name: body.merchant_name || 'CARDDEMO MERCHANT',
+          orig_ts: nowTs,
+        });
+      }
+      return jsonResponse({
+        tran_id: tranId,
+        acct_id: acct.acct_id,
+        new_balance: nextBal,
+        message: `Transaction added successfully. Tran ID: ${tranId} (COTRN02C)`,
+      });
+    }
+
+    if (pathname === '/api/reports/transactions' && request.method === 'POST') {
+      const body = await request.json();
+      const rtype = String(body.report_type || 'MONTHLY').toUpperCase();
+      const startDate = rtype === 'MONTHLY' ? '2026-10-01' : rtype === 'YEARLY' ? '2026-01-01' : body.start_date || '2020-01-01';
+      const endDate = rtype === 'MONTHLY' ? '2026-10-31' : rtype === 'YEARLY' ? '2026-12-31' : body.end_date || '2026-12-31';
+      const transactions = [];
+      let total = 0;
+      for (const acct of state.accounts.slice(0, 15)) {
+        const d = state.details[acct.acct_id];
+        for (const t of (d?.transactions || []).slice(0, 3)) {
+          total += parseFloat(t.amt || '0') || 0;
+          transactions.push({
+            tran_id: t.tran_id,
+            acct_id: acct.acct_id,
+            card_num: acct.card_num,
+            type_cd: t.type_cd,
+            cat_cd: t.cat_cd,
+            source: t.source,
+            amt: t.amt,
+            orig_ts: t.orig_ts,
+            description: t.description,
+            merchant_name: t.merchant_name || 'CARDDEMO',
+            merchant_city: 'NEW YORK',
+          });
+        }
+      }
+      return jsonResponse({
+        report_type: rtype,
+        start_date: startDate,
+        end_date: endDate,
+        transaction_count: transactions.length,
+        total_amount: total.toFixed(2),
+        transactions,
+        message: `${rtype} Transaction Report submitted via CICS TDQ JOBS (CORPT00C -> CBTRN03C): ${transactions.length} records, Total $${total.toFixed(2)}`,
+      });
+    }
+
+    if (pathname === '/api/users' && request.method === 'GET') {
+      return jsonResponse(state.users);
+    }
+
+    if (pathname === '/api/users' && request.method === 'POST') {
+      const body = await request.json();
+      const action = String(body.action || 'ADD').toUpperCase();
+      const usrId = String(body.usr_id || '').trim().toUpperCase();
+      if (action === 'ADD' || action === 'UPDATE') {
+        const existing = state.users.find((u) => u.usr_id === usrId);
+        if (existing) {
+          existing.first_name = String(body.first_name || existing.first_name).toUpperCase();
+          existing.last_name = String(body.last_name || existing.last_name).toUpperCase();
+          existing.usr_type = String(body.usr_type || existing.usr_type).toUpperCase();
+        } else {
+          state.users.push({
+            usr_id: usrId,
+            first_name: String(body.first_name || '').toUpperCase(),
+            last_name: String(body.last_name || '').toUpperCase(),
+            usr_type: String(body.usr_type || 'U').toUpperCase(),
+          });
+        }
+      } else if (action === 'DELETE') {
+        state.users = state.users.filter((u) => u.usr_id !== usrId);
+      }
+      return jsonResponse({
+        success: true,
+        usr_id: usrId,
+        usr_type: String(body.usr_type || 'U').toUpperCase(),
+        target_menu: 'COADM01C',
+        message: `USRSEC ${action} completed for ${usrId} (COUSR00C..03C)`,
+      });
     }
 
     if (pathname === '/api/rejects' && request.method === 'GET') {
@@ -699,6 +858,7 @@ export default {
 
     if (pathname === '/api/batch/run-nightly' && request.method === 'POST') {
       state = JSON.parse(JSON.stringify(snapshot));
+      ensureExtendedState();
       return jsonResponse(state.overview.latest_parity_report);
     }
 

@@ -67,6 +67,26 @@ export type SecurityGateRequest = { command: string, };
 
 export type SecurityGateResponseDto = { decision: string, matched_rule: string | null, hook: string, reason: string, };
 
+export type CardRecordDto = { card_num: string, acct_id: string, cust_id: string, cvv_cd: string, embossed_name: string, expiration_date: string, active_status: string, };
+
+export type UpdateCardRequest = { embossed_name: string, expiration_date: string, active_status: string, };
+
+export type UpdateCardResponseDto = { card_num: string, acct_id: string, embossed_name: string, expiration_date: string, active_status: string, message: string, };
+
+export type AddTransactionRequest = { acct_id: string, card_num: string, type_cd: string, cat_cd: string, source: string, description: string, amt: string, merchant_id: string, merchant_name: string, merchant_city: string, merchant_zip: string, orig_date: string, proc_date: string, };
+
+export type AddTransactionResponseDto = { tran_id: string, acct_id: string, new_balance: string, message: string, };
+
+export type TransactionReportRequest = { report_type: string, start_date: string, end_date: string, };
+
+export type TransactionReportResponseDto = { report_type: string, start_date: string, end_date: string, transaction_count: number, total_amount: string, message: string, transactions: Array<TransactionRowDto>, };
+
+export type SecUserDto = { usr_id: string, first_name: string, last_name: string, usr_type: string, };
+
+export type UserSecurityActionRequest = { action: string, usr_id: string, first_name: string, last_name: string, password: string, usr_type: string, };
+
+export type UserSecurityActionResponseDto = { success: boolean, usr_id: string, usr_type: string, target_menu: string, message: string, };
+
 export type BillPayRequest = { confirm: string, };
 
 export type UpdateAccountRequest = { credit_limit: string, active_status: string, };
