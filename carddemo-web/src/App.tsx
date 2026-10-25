@@ -19,6 +19,8 @@ import {
   CheckCircleIcon,
   CpuIcon,
   CreditCardIcon,
+  SunIcon,
+  MoonIcon,
 } from '@phosphor-icons/react';
 
 import { AutoForeground, FG_EVENT } from '@/components/auto-foreground';
@@ -420,10 +422,34 @@ export function App() {
   const [gateCommand, setGateCommand] = useState<string>('DROP TABLE accounts;');
   const [gateResult, setGateResult] = useState<SecurityGateResponseDto | null>(null);
 
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('carddemo_theme');
+      if (saved) return saved === 'dark';
+    }
+    return true;
+  });
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('carddemo_theme', next ? 'dark' : 'light');
+      }
+      return next;
+    });
+  };
+
   // Sync Sistine theme attributes on <html>
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.add('dark');
+    if (isDarkMode) {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
     if (glassMaterial === 'glass') {
       delete root.dataset.glass;
     } else {
@@ -431,7 +457,7 @@ export function App() {
     }
     root.dataset.glassTint = glassTint;
     window.dispatchEvent(new Event(FG_EVENT));
-  }, [glassMaterial, glassTint]);
+  }, [isDarkMode, glassMaterial, glassTint]);
 
   const loadAccountDetail = async (acctId: string) => {
     const res = await fetch(`/api/accounts/${acctId}`);
@@ -1143,6 +1169,28 @@ export function App() {
                 {parityReport.max_cent_drift})
               </Badge>
             )}
+
+            {/* Night & Day Mode Switcher */}
+            <Button
+              variant="glass"
+              size="sm"
+              border
+              onClick={toggleTheme}
+              className="gap-1.5 text-xs bg-black border-white/25 text-white hover:border-amber-400"
+              title={isDarkMode ? 'Switch to Day Mode (Light)' : 'Switch to Night Mode (Dark)'}
+            >
+              {isDarkMode ? (
+                <>
+                  <SunIcon className="w-3.5 h-3.5 text-amber-400" weight="fill" />
+                  <span className="hidden sm:inline">Day</span>
+                </>
+              ) : (
+                <>
+                  <MoonIcon className="w-3.5 h-3.5 text-indigo-400" weight="fill" />
+                  <span className="hidden sm:inline">Night</span>
+                </>
+              )}
+            </Button>
 
             {/* Surface Material Switcher */}
             <DropdownMenu>

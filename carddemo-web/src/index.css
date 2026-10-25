@@ -1,3 +1,4 @@
+@custom-variant dark (&:where(.dark, .dark *));
 @import "./sistine-theme.css";
 
 @layer base {
@@ -8,36 +9,165 @@
   }
 
   body {
-    @apply bg-[#050806] text-white antialiased selection:bg-emerald-500 selection:text-black;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Monospace typography specifically for terminals and codes */
+  code, pre, kbd, samp, .font-mono, [data-slot="mono"] {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  }
+
+  html.dark body {
+    background-color: #040705;
+    color: #ffffff;
+  }
+
+  html:not(.dark) body {
+    background-color: #f8fafc;
+    color: #0f172a;
   }
 }
 
-/* Modern AS/400 Opaque Black & White Card + Phosphor Green Hallmark */
-.as400-card {
-  background-color: #070b08;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+/* =========================================================================
+   Day Mode (Light Theme) Palette Overrides
+   ========================================================================= */
+html:not(.dark) {
+  color-scheme: light;
 }
 
-.as400-green {
-  color: #4ade80;
+html:not(.dark) .bg-\[\#040705\],
+html:not(.dark) .bg-\[\#050806\],
+html:not(.dark) .bg-\[\#060a07\] {
+  background-color: #f8fafc !important;
 }
 
-/* IBM 3270 Terminal CRT Emulation */
-.crt-scanlines {
-  background: linear-gradient(
+html:not(.dark) header.bg-\[\#060a07\] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-\[\#070b08\],
+html:not(.dark) .bg-\[\#080c09\],
+html:not(.dark) .bg-\[\#0a0f0c\],
+html:not(.dark) aside.bg-\[\#060a07\] {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .bg-black\/60,
+html:not(.dark) .bg-black\/70,
+html:not(.dark) .bg-black\/80,
+html:not(.dark) .bg-black {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-white\/80,
+html:not(.dark) .text-white\/75,
+html:not(.dark) .text-white\/70 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-white\/60,
+html:not(.dark) .text-white\/50,
+html:not(.dark) .text-white\/40 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .border-white\/25,
+html:not(.dark) .border-white\/20,
+html:not(.dark) .border-white\/15,
+html:not(.dark) .border-white\/10 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .text-emerald-400 {
+  color: #059669 !important;
+}
+
+html:not(.dark) .bg-emerald-500\/15 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html:not(.dark) .text-emerald-300 {
+  color: #047857 !important;
+}
+
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 1px #059669 !important;
+}
+
+/* =========================================================================
+   IBM 3270 CRT Screen Terminal — ALWAYS Retro Green Monitor in All Modes
+   ========================================================================= */
+.crt-scanlines,
+.crt-scanlines pre,
+pre.crt-scanlines {
+  background: #050a06 linear-gradient(
     rgba(18, 16, 16, 0) 50%,
     rgba(0, 0, 0, 0.35) 50%
   ), linear-gradient(
     90deg,
     rgba(255, 0, 0, 0.03),
     rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 255, 0.03)
-  );
-  background-size: 100% 3px, 6px 100%;
+    rgba(0, 255, 0, 0.03)
+  ) !important;
+  background-size: 100% 3px, 6px 100% !important;
+  color: #34d399 !important;
 }
 
 .crt-glow {
   text-shadow: 0 0 6px rgba(34, 197, 94, 0.45);
+}
+
+html:not(.dark) .crt-scanlines,
+html:not(.dark) .crt-scanlines * {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+html:not(.dark) .crt-scanlines pre,
+html:not(.dark) pre.crt-scanlines,
+html:not(.dark) .crt-scanlines pre.bg-black {
+  background-color: #000000 !important;
+  color: #34d399 !important;
+}
+
+html:not(.dark) .crt-scanlines .text-white {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .crt-scanlines .text-emerald-400 {
+  color: #34d399 !important;
+}
+
+html:not(.dark) .crt-scanlines input {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: rgba(52, 211, 153, 0.6) !important;
+}
+
+html:not(.dark) .crt-scanlines button {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .crt-scanlines button.bg-emerald-500 {
+  background-color: #10b981 !important;
+  color: #000000 !important;
 }
