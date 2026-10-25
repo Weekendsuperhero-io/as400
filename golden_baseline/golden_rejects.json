@@ -1,0 +1,344 @@
+[
+  {
+    "tran_id": "0000000040455859",
+    "card_num": "1142167692878931",
+    "acct_id": "00000000037",
+    "amt": "715.44",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000108402349",
+    "card_num": "9349107475869214",
+    "acct_id": "00000000017",
+    "amt": "633.00",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000111054243",
+    "card_num": "6723000463207764",
+    "acct_id": "00000000028",
+    "amt": "948.44",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000148803688",
+    "card_num": "6509230362553816",
+    "acct_id": "00000000030",
+    "amt": "203.44",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000183226769",
+    "card_num": "8040580410348680",
+    "acct_id": "00000000026",
+    "amt": "907.55",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000220001505",
+    "card_num": "6509230362553816",
+    "acct_id": "00000000030",
+    "amt": "929.77",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000252891459",
+    "card_num": "6723000463207764",
+    "acct_id": "00000000028",
+    "amt": "944.99",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000277916619",
+    "card_num": "7094142751055551",
+    "acct_id": "00000000032",
+    "amt": "996.88",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000329446511",
+    "card_num": "8040580410348680",
+    "acct_id": "00000000026",
+    "amt": "667.55",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000424689871",
+    "card_num": "5787351228879339",
+    "acct_id": "00000000047",
+    "amt": "648.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000502617711",
+    "card_num": "4859452612877065",
+    "acct_id": "00000000007",
+    "amt": "955.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000508429766",
+    "card_num": "7094142751055551",
+    "acct_id": "00000000032",
+    "amt": "534.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000519771423",
+    "card_num": "6723000463207764",
+    "acct_id": "00000000028",
+    "amt": "670.00",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000523110055",
+    "card_num": "7379335634661142",
+    "acct_id": "00000000045",
+    "amt": "736.88",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000554096178",
+    "card_num": "6503535181795992",
+    "acct_id": "00000000048",
+    "amt": "722.33",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000564257675",
+    "card_num": "6503535181795992",
+    "acct_id": "00000000048",
+    "amt": "623.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000570013846",
+    "card_num": "9349107475869214",
+    "acct_id": "00000000017",
+    "amt": "352.33",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000575834812",
+    "card_num": "7379335634661142",
+    "acct_id": "00000000045",
+    "amt": "689.88",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000601496057",
+    "card_num": "6509230362553816",
+    "acct_id": "00000000030",
+    "amt": "900.22",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000667157384",
+    "card_num": "5671184478505844",
+    "acct_id": "00000000018",
+    "amt": "952.77",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000735823935",
+    "card_num": "5407099850479866",
+    "acct_id": "00000000021",
+    "amt": "910.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000741999667",
+    "card_num": "9349107475869214",
+    "acct_id": "00000000017",
+    "amt": "643.44",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000742447110",
+    "card_num": "8517866958206008",
+    "acct_id": "00000000014",
+    "amt": "746.77",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000749066680",
+    "card_num": "6509230362553816",
+    "acct_id": "00000000030",
+    "amt": "805.77",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000755736377",
+    "card_num": "9680294154603697",
+    "acct_id": "00000000001",
+    "amt": "906.44",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000767081090",
+    "card_num": "1142167692878931",
+    "acct_id": "00000000037",
+    "amt": "671.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000767308626",
+    "card_num": "1142167692878931",
+    "acct_id": "00000000037",
+    "amt": "856.44",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000776200014",
+    "card_num": "9680294154603697",
+    "acct_id": "00000000001",
+    "amt": "985.22",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000781205695",
+    "card_num": "5787351228879339",
+    "acct_id": "00000000047",
+    "amt": "489.66",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000823157599",
+    "card_num": "9349107475869214",
+    "acct_id": "00000000017",
+    "amt": "111.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000873232405",
+    "card_num": "4534784102713951",
+    "acct_id": "00000000036",
+    "amt": "720.99",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000885437581",
+    "card_num": "7026637615032277",
+    "acct_id": "00000000031",
+    "amt": "818.00",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000887771179",
+    "card_num": "7026637615032277",
+    "acct_id": "00000000031",
+    "amt": "242.22",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000889986293",
+    "card_num": "1561409106491600",
+    "acct_id": "00000000035",
+    "amt": "973.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000910081354",
+    "card_num": "7026637615032277",
+    "acct_id": "00000000031",
+    "amt": "130.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000929059536",
+    "card_num": "8517866958206008",
+    "acct_id": "00000000014",
+    "amt": "920.11",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000961186055",
+    "card_num": "1142167692878931",
+    "acct_id": "00000000037",
+    "amt": "548.33",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  },
+  {
+    "tran_id": "0000000992103545",
+    "card_num": "1142167692878931",
+    "acct_id": "00000000037",
+    "amt": "635.99",
+    "orig_ts": "2022-06-10 19:27:53.000000",
+    "fail_reason": 102,
+    "fail_desc": "OVERLIMIT TRANSACTION"
+  }
+]

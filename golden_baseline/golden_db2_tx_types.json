@@ -1,0 +1,124 @@
+{
+  "transaction_types": [
+    {
+      "tr_type": "01",
+      "tr_description": "Purchase"
+    },
+    {
+      "tr_type": "02",
+      "tr_description": "Payment"
+    },
+    {
+      "tr_type": "03",
+      "tr_description": "Credit"
+    },
+    {
+      "tr_type": "04",
+      "tr_description": "Authorization"
+    },
+    {
+      "tr_type": "05",
+      "tr_description": "Refund"
+    },
+    {
+      "tr_type": "06",
+      "tr_description": "Reversal"
+    },
+    {
+      "tr_type": "07",
+      "tr_description": "Adjustment"
+    }
+  ],
+  "transaction_categories": [
+    {
+      "trc_type_code": "01",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Regular Sales Draft"
+    },
+    {
+      "trc_type_code": "01",
+      "trc_type_category": "0002",
+      "trc_cat_data": "Regular Cash Advance"
+    },
+    {
+      "trc_type_code": "01",
+      "trc_type_category": "0003",
+      "trc_cat_data": "Convenience Check Debit"
+    },
+    {
+      "trc_type_code": "01",
+      "trc_type_category": "0004",
+      "trc_cat_data": "ATM Cash Advance"
+    },
+    {
+      "trc_type_code": "01",
+      "trc_type_category": "0005",
+      "trc_cat_data": "Interest Amount"
+    },
+    {
+      "trc_type_code": "02",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Cash payment"
+    },
+    {
+      "trc_type_code": "02",
+      "trc_type_category": "0002",
+      "trc_cat_data": "Electronic payment"
+    },
+    {
+      "trc_type_code": "02",
+      "trc_type_category": "0003",
+      "trc_cat_data": "Check payment"
+    },
+    {
+      "trc_type_code": "03",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Credit to Account"
+    },
+    {
+      "trc_type_code": "03",
+      "trc_type_category": "0002",
+      "trc_cat_data": "Credit to Purchase balance"
+    },
+    {
+      "trc_type_code": "03",
+      "trc_type_category": "0003",
+      "trc_cat_data": "Credit to Cash balance"
+    },
+    {
+      "trc_type_code": "04",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Zero dollar authorization"
+    },
+    {
+      "trc_type_code": "04",
+      "trc_type_category": "0002",
+      "trc_cat_data": "Online purchase authorization"
+    },
+    {
+      "trc_type_code": "04",
+      "trc_type_category": "0003",
+      "trc_cat_data": "Travel booking authorization"
+    },
+    {
+      "trc_type_code": "05",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Refund credit"
+    },
+    {
+      "trc_type_code": "06",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Fraud reversal"
+    },
+    {
+      "trc_type_code": "06",
+      "trc_type_category": "0002",
+      "trc_cat_data": "Non-fraud reversal"
+    },
+    {
+      "trc_type_code": "07",
+      "trc_type_category": "0001",
+      "trc_cat_data": "Sales draft credit adjustment"
+    }
+  ]
+}

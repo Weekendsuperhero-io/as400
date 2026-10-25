@@ -1,0 +1,6 @@
+target/
+carddemo-web/node_modules/
+carddemo-web/dist/
+carddemo.db
+carddemo.db-journal
+.DS_Store

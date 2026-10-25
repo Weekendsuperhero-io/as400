@@ -1,0 +1,23 @@
+{
+  "benchmark_name": "AWS CardDemo Full Nightly JCL Batch Cycle (COMBTRAN + POSTTRAN + INTCALC + CREASTMT + MNTTRDB2)",
+  "legacy_mainframe_baseline_ms": 412.4,
+  "python_reference_harness_ms": 3.3,
+  "dataset_counts": {
+    "accounts": 50,
+    "customers": 50,
+    "cards": 50,
+    "daily_transactions_input": 300,
+    "daily_transactions_posted": 262,
+    "daily_transactions_rejected": 38,
+    "interest_transactions_generated": 50,
+    "tcatbal_records_after_posting": 100,
+    "db2_transaction_types": 7,
+    "db2_transaction_categories": 18
+  },
+  "financial_checksums": {
+    "total_initial_balance": "12269.00",
+    "total_post_tran_balance": "90223.70",
+    "total_interest_charged": "1279.16",
+    "total_final_balance": "91502.86"
+  }
+}

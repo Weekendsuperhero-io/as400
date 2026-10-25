@@ -1,0 +1,16 @@
+{
+  "security-gate": {
+    "pre_tool_execution": [
+      {
+        "matcher": "code_execution",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /.agents/hooks-scripts/gate.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
