@@ -2,15 +2,69 @@ use crate::vsam_codec::{
     fmt_money, parse_overpunch, AccountRecord, CardRecord, CardXrefRecord, CustomerRecord,
 };
 use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use ts_rs::TS;
+use typeshare::typeshare;
+use utoipa::ToSchema;
+
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
+pub struct SqliteWalTelemetryDto {
+    pub journal_mode: String,
+    pub synchronous: i32,
+    pub foreign_keys: bool,
+    pub wal_autocheckpoint: i32,
+    pub page_size: i32,
+    pub wal_verified: bool,
+}
+
+pub fn query_sqlite_wal_status(conn: &Connection) -> Result<SqliteWalTelemetryDto, String> {
+    let journal_mode: String = conn
+        .query_row("PRAGMA journal_mode;", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let synchronous: i32 = conn
+        .query_row("PRAGMA synchronous;", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let fk_int: i32 = conn
+        .query_row("PRAGMA foreign_keys;", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let wal_autocheckpoint: i32 = conn
+        .query_row("PRAGMA wal_autocheckpoint;", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let page_size: i32 = conn
+        .query_row("PRAGMA page_size;", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let wal_verified = journal_mode.eq_ignore_ascii_case("wal") && fk_int == 1;
+    Ok(SqliteWalTelemetryDto {
+        journal_mode,
+        synchronous,
+        foreign_keys: fk_int == 1,
+        wal_autocheckpoint,
+        page_size,
+        wal_verified,
+    })
+}
 
 pub fn init_db(db_path: &Path, schema_sql_path: &Path) -> Result<Connection, String> {
     let conn = Connection::open(db_path).map_err(|e| format!("SQLite open error: {}", e))?;
+    conn.execute_batch(
+        "PRAGMA journal_mode = WAL;
+         PRAGMA synchronous = NORMAL;
+         PRAGMA foreign_keys = ON;
+         PRAGMA busy_timeout = 5000;
+         PRAGMA wal_autocheckpoint = 1000;",
+    )
+    .map_err(|e| format!("Failed configuring SQLite WAL pragmas: {}", e))?;
     let schema = fs::read_to_string(schema_sql_path)
         .map_err(|e| format!("Failed reading schema {:?}: {}", schema_sql_path, e))?;
     conn.execute_batch(&schema)
         .map_err(|e| format!("Failed executing schema migration: {}", e))?;
+    let wal = query_sqlite_wal_status(&conn)?;
+    if !wal.wal_verified {
+        return Err(format!("SQLite WAL verification failed: {:?}", wal));
+    }
     Ok(conn)
 }
 

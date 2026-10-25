@@ -6,12 +6,16 @@ use chrono::Utc;
 use rusqlite::{params, Connection};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct AccountParityDiff {
     pub acct_id: String,
     pub initial_bal: String,
@@ -27,19 +31,21 @@ pub struct AccountParityDiff {
     pub parity_match: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct JclStepMetrics {
     pub step_name: String,
     pub program: String,
     pub jcl_file: String,
     pub return_code: i32,
-    pub records_in: usize,
-    pub records_out: usize,
+    pub records_in: u32,
+    pub records_out: u32,
     pub duration_ms: f64,
     pub status: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct BatchParityReport {
     pub job_name: String,
     pub executed_at: String,
@@ -47,18 +53,18 @@ pub struct BatchParityReport {
     pub legacy_baseline_ms: f64,
     pub python_reference_ms: f64,
     pub speedup_vs_legacy: f64,
-    pub accounts_verified: usize,
-    pub accounts_matched: usize,
+    pub accounts_verified: u32,
+    pub accounts_matched: u32,
     pub parity_pct: f64,
     pub max_cent_drift: String,
     pub total_initial_balance: String,
     pub total_post_tran_balance: String,
     pub total_interest_charged: String,
     pub total_final_balance: String,
-    pub daily_tx_processed: usize,
-    pub daily_tx_posted: usize,
-    pub daily_tx_rejected: usize,
-    pub interest_tx_generated: usize,
+    pub daily_tx_processed: u32,
+    pub daily_tx_posted: u32,
+    pub daily_tx_rejected: u32,
+    pub interest_tx_generated: u32,
     pub jcl_steps: Vec<JclStepMetrics>,
     pub account_diffs: Vec<AccountParityDiff>,
 }
@@ -102,8 +108,8 @@ pub fn run_nightly_batch_and_verify(
         program: "SORT / IDCAMS".to_string(),
         jcl_file: "COMBTRAN.jcl".to_string(),
         return_code: 0,
-        records_in: daily_records.len(),
-        records_out: daily_records.len(),
+        records_in: daily_records.len() as u32,
+        records_out: daily_records.len() as u32,
         duration_ms: (step1_ms * 1000.0).round() / 1000.0,
         status: "RC=0000 OK".to_string(),
     });
@@ -314,8 +320,8 @@ pub fn run_nightly_batch_and_verify(
         program: "CBTRN02C".to_string(),
         jcl_file: "POSTTRAN.jcl".to_string(),
         return_code: if rejected_tx.is_empty() { 0 } else { 4 },
-        records_in: daily_records.len(),
-        records_out: posted_tx.len(),
+        records_in: daily_records.len() as u32,
+        records_out: posted_tx.len() as u32,
         duration_ms: (step2_ms * 1000.0).round() / 1000.0,
         status: format!(
             "RC=0004 ({} posted, {} rejected to DALYREJS)",
@@ -406,8 +412,8 @@ pub fn run_nightly_batch_and_verify(
         program: "CBACT04C".to_string(),
         jcl_file: "INTCALC.jcl".to_string(),
         return_code: 0,
-        records_in: tcatbal.len(),
-        records_out: interest_tx.len(),
+        records_in: tcatbal.len() as u32,
+        records_out: interest_tx.len() as u32,
         duration_ms: (step3_ms * 1000.0).round() / 1000.0,
         status: format!("RC=0000 ({} interest transactions posted)", interest_tx.len()),
     });
@@ -486,8 +492,8 @@ pub fn run_nightly_batch_and_verify(
         program: "CBSTM03A / COBTUPDT".to_string(),
         jcl_file: "CREASTMT.JCL / MNTTRDB2.jcl".to_string(),
         return_code: 0,
-        records_in: accounts.len(),
-        records_out: accounts.len(),
+        records_in: accounts.len() as u32,
+        records_out: accounts.len() as u32,
         duration_ms: (step4_ms * 1000.0).round() / 1000.0,
         status: "RC=0000 (50 Statements + DB2 Sync Verified)".to_string(),
     });
@@ -565,18 +571,18 @@ pub fn run_nightly_batch_and_verify(
         legacy_baseline_ms,
         python_reference_ms: 3.21,
         speedup_vs_legacy: speedup,
-        accounts_verified: golden_list.len(),
-        accounts_matched: matched_count,
+        accounts_verified: golden_list.len() as u32,
+        accounts_matched: matched_count as u32,
         parity_pct,
         max_cent_drift: fmt_money(max_drift),
         total_initial_balance: fmt_money(sum_init),
         total_post_tran_balance: fmt_money(sum_post),
         total_interest_charged: fmt_money(sum_int),
         total_final_balance: fmt_money(sum_final),
-        daily_tx_processed: daily_records.len(),
-        daily_tx_posted: posted_tx.len(),
-        daily_tx_rejected: rejected_tx.len(),
-        interest_tx_generated: interest_tx.len(),
+        daily_tx_processed: daily_records.len() as u32,
+        daily_tx_posted: posted_tx.len() as u32,
+        daily_tx_rejected: rejected_tx.len() as u32,
+        interest_tx_generated: interest_tx.len() as u32,
         jcl_steps,
         account_diffs,
     };

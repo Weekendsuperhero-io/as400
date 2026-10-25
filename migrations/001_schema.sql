@@ -6,7 +6,11 @@
 --   3. IBM IMS HIDAM Hierarchical Segments (DBPAUTP0: PAUTSUM0 Root + PAUTDTL1 Child)
 -- ============================================================================
 
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;
 PRAGMA foreign_keys = ON;
+PRAGMA busy_timeout = 5000;
+PRAGMA wal_autocheckpoint = 1000;
 
 -- 1. VSAM USRSEC (CSUSR01Y.cpy - 80 bytes)
 CREATE TABLE IF NOT EXISTS sec_users (

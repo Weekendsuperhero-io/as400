@@ -3,9 +3,13 @@ use chrono::Utc;
 use rusqlite::{params, Connection};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct BmsField {
     pub id: String,
     pub label: String,
@@ -17,7 +21,8 @@ pub struct BmsField {
     pub color: String, // "green", "turquoise", "yellow", "red", "white", "blue"
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct TerminalScreenResponse {
     pub tran_id: String,
     pub program_name: String,
@@ -32,7 +37,8 @@ pub struct TerminalScreenResponse {
     pub pf_keys: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
 pub struct TerminalCommandRequest {
     pub tran_id: String,
     pub aid_key: String, // "ENTER", "PF3", "PF4", "PF5", "PF7", "PF8", "CLEAR"
