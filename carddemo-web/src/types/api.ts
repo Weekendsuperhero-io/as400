@@ -210,6 +210,13 @@ export interface FraudToggleResponseDto {
   message: string;
 }
 
+export interface SecurityGateResponseDto {
+  decision: 'allow' | 'deny';
+  matched_rule: string | null;
+  hook: string;
+  reason: string;
+}
+
 export interface AccountParityDiff {
   acct_id: string;
   initial_bal: string;

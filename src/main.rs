@@ -286,6 +286,19 @@ struct FraudToggleResponseDto {
 }
 
 #[derive(Deserialize)]
+struct SecurityGateRequest {
+    command: String,
+}
+
+#[derive(Serialize)]
+struct SecurityGateResponseDto {
+    decision: String,
+    matched_rule: Option<String>,
+    hook: String,
+    reason: String,
+}
+
+#[derive(Deserialize)]
 struct BillPayRequest {
     confirm: String,
 }
@@ -388,6 +401,7 @@ async fn main() -> Result<(), String> {
         .route("/api/ims/fraud", post(post_ims_fraud))
         .route("/api/batch/run-nightly", post(post_run_nightly_batch))
         .route("/api/cics/terminal", post(post_cics_terminal))
+        .route("/api/agent/security-gate", post(post_security_gate))
         .fallback_service(ServeDir::new(web_dist))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -1164,3 +1178,35 @@ async fn post_cics_terminal(
         execute_cics_terminal(&mut conn, &req).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(resp))
 }
+
+async fn post_security_gate(Json(req): Json<SecurityGateRequest>) -> Json<SecurityGateResponseDto> {
+    let cmd = req.command.trim();
+    let forbidden = [
+        "rm -rf /",
+        "DROP TABLE accounts",
+        "DROP TABLE transactions",
+        "TRUNCATE TABLE",
+        "gh pr merge",
+    ];
+    for pattern in forbidden {
+        if cmd.contains(pattern) {
+            return Json(SecurityGateResponseDto {
+                decision: "deny".to_string(),
+                matched_rule: Some(pattern.to_string()),
+                hook: ".agents/hooks-scripts/gate.py".to_string(),
+                reason: format!(
+                    "Blocked by CardDemo Financial Safety Policy: '{}' requires explicit human sign-off.",
+                    pattern
+                ),
+            });
+        }
+    }
+    Json(SecurityGateResponseDto {
+        decision: "allow".to_string(),
+        matched_rule: None,
+        hook: ".agents/hooks-scripts/gate.py".to_string(),
+        reason: "Allowed by pre_tool_execution policy: read/verification or non-destructive operation."
+            .to_string(),
+    })
+}
+
