@@ -862,6 +862,10 @@ export default {
       return jsonResponse(state.overview.latest_parity_report);
     }
 
+    if (pathname === '/api/benchmark/500k' && request.method === 'GET') {
+      return jsonResponse(state.benchmark_500k || snapshot.benchmark_500k);
+    }
+
     if (pathname === '/api/cics/terminal' && request.method === 'POST') {
       const body = await request.json();
       return jsonResponse(renderDynamicTerminal(body));

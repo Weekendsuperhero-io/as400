@@ -7,3 +7,9 @@ carddemo.db-journal
 
 *.db-wal
 *.db-shm
+
+# Large benchmark artifacts
+data/ASCII/dailytran_500k.txt
+*.500k.txt
+500K_BENCHMARK_REPORT.json
+
