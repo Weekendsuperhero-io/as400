@@ -6,7 +6,6 @@ import {
   MagnifyingGlassIcon,
   DiamondIcon,
   UserCircleIcon,
-  ColumnsIcon,
   ListIcon,
   XIcon,
   FileTextIcon,
@@ -19,9 +18,8 @@ import {
   CheckCircleIcon,
   CpuIcon,
   CreditCardIcon,
-  SunIcon,
-  MoonIcon,
 } from '@phosphor-icons/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { AutoForeground, FG_EVENT } from '@/components/auto-foreground';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -334,7 +332,7 @@ const MAINFRAME_LANDMINES = [
 ];
 
 export function App() {
-  const [viewMode, setViewMode] = useState<'modern' | 'split' | '3270'>('modern');
+  const [revealPercent, setRevealPercent] = useState<number>(0);
   const [activeWindow, setActiveWindow] = useState<As400WindowId>('CAVW');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
@@ -424,21 +422,22 @@ export function App() {
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('carddemo_theme');
-      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return true;
   });
 
-  const toggleTheme = () => {
-    setIsDarkMode((prev) => {
-      const next = !prev;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('carddemo_theme', next ? 'dark' : 'light');
-      }
-      return next;
-    });
-  };
+  // Automatically respond to system OS Night / Day mode
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateTheme = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsDarkMode(e.matches);
+    };
+    updateTheme(mq);
+    mq.addEventListener('change', updateTheme);
+    return () => mq.removeEventListener('change', updateTheme);
+  }, []);
 
   // Sync Sistine theme attributes on <html>
   useEffect(() => {
@@ -563,7 +562,7 @@ export function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F12') {
         e.preventDefault();
-        setViewMode((prev) => (prev === 'modern' ? 'split' : prev === 'split' ? '3270' : 'modern'));
+        setRevealPercent((prev) => (prev === 0 ? 100 : prev === 100 ? 50 : 0));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1120,217 +1119,8 @@ export function App() {
     );
   };
 
-  return (
-    <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#040705] text-white relative flex flex-col selection:bg-emerald-500 selection:text-black">
-      <AutoForeground />
-
-      {/* Top AS/400 Workstation Header Bar */}
-      <header className="sticky top-0 z-40 bg-[#060a07] border-b border-white/25 px-3 sm:px-5 py-2.5">
-        <div className="max-w-[1760px] mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/* Mobile Drawer Button */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((o) => !o)}
-              className="lg:hidden p-2 rounded-lg bg-black border border-emerald-500/60 text-emerald-400 hover:bg-emerald-950"
-              aria-label="Toggle AS/400 Command Menu"
-            >
-              {mobileMenuOpen ? <XIcon className="w-5 h-5" /> : <ListIcon className="w-5 h-5" />}
-            </button>
-
-            <div className="h-9 w-9 shrink-0 rounded-lg bg-black border border-emerald-400/70 flex items-center justify-center shadow-[0_0_12px_rgba(74,222,128,0.2)]">
-              <TerminalWindowIcon className="w-5 h-5 text-emerald-400" weight="duotone" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono font-bold tracking-tight text-sm sm:text-base text-white">
-                  IBM i / AS400 <span className="text-emerald-400">CardDemo Workstation</span>
-                </span>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-mono text-[11px]">
-                  {activeWindowDef.tranCode} • {activeWindowDef.cobolProg}
-                </span>
-              </div>
-              <p className="text-[11px] text-white/70 truncate">
-                21 BMS Screens • 44 COBOL Modules • VSAM + DB2 + IMS • SQLite WAL
-              </p>
-            </div>
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {parityReport && (
-              <Badge
-                variant="glass"
-                border
-                className="hidden md:inline-flex h-7 px-2.5 gap-1.5 text-[11px] font-mono bg-black border-emerald-400/50 text-emerald-300"
-              >
-                <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" weight="fill" />
-                Parity: {parityReport.accounts_matched}/{parityReport.accounts_verified} ($
-                {parityReport.max_cent_drift})
-              </Badge>
-            )}
-
-            {/* Night & Day Mode Switcher */}
-            <Button
-              variant="glass"
-              size="sm"
-              border
-              onClick={toggleTheme}
-              className="gap-1.5 text-xs bg-black border-white/25 text-white hover:border-amber-400"
-              title={isDarkMode ? 'Switch to Day Mode (Light)' : 'Switch to Night Mode (Dark)'}
-            >
-              {isDarkMode ? (
-                <>
-                  <SunIcon className="w-3.5 h-3.5 text-amber-400" weight="fill" />
-                  <span className="hidden sm:inline">Day</span>
-                </>
-              ) : (
-                <>
-                  <MoonIcon className="w-3.5 h-3.5 text-indigo-400" weight="fill" />
-                  <span className="hidden sm:inline">Night</span>
-                </>
-              )}
-            </Button>
-
-            {/* Surface Material Switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="glass"
-                  size="sm"
-                  border
-                  className="gap-1 text-xs bg-black border-white/25 text-white hover:border-emerald-400"
-                >
-                  <DiamondIcon className="w-3.5 h-3.5 text-emerald-400" weight="duotone" />
-                  <span className="hidden sm:inline capitalize">{glassMaterial}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-[#070b08] border-white/25 text-white">
-                <DropdownMenuLabel className="text-xs text-emerald-400">
-                  Workstation Surface
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {SISTINE_MATERIALS.map((m) => (
-                  <DropdownMenuItem
-                    key={m.value}
-                    onClick={() => setGlassMaterial(m.value)}
-                    className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
-                  >
-                    <div className="flex w-full items-center justify-between font-medium text-xs">
-                      <span>{m.label}</span>
-                      {glassMaterial === m.value && (
-                        <span className="text-[10px] text-emerald-400 font-mono">ACTIVE</span>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-white/60">{m.desc}</span>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-emerald-400">
-                  Phosphor &amp; Tint
-                </DropdownMenuLabel>
-                {SISTINE_TINTS.map((t) => (
-                  <DropdownMenuItem
-                    key={t.value}
-                    onClick={() => setGlassTint(t.value)}
-                    className="flex items-center justify-between text-xs cursor-pointer"
-                  >
-                    <span>{t.label}</span>
-                    {glassTint === t.value && <span className="text-emerald-400">●</span>}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Run JCL Nightly Batch */}
-            <Button
-              variant="default"
-              size="sm"
-              disabled={isRunningBatch}
-              onClick={handleRunNightlyBatch}
-              className="gap-1.5 font-mono text-xs bg-emerald-500 text-black font-bold hover:bg-emerald-400"
-            >
-              <PlayIcon className="w-3.5 h-3.5" weight="fill" />
-              <span className="hidden sm:inline">
-                {isRunningBatch ? 'Running JCL...' : 'Run Nightly JCL'}
-              </span>
-              <span className="sm:hidden">JCL</span>
-            </Button>
-
-            {/* Split 3270 Toggle */}
-            <Button
-              variant={viewMode === 'split' ? 'default' : 'glass'}
-              size="sm"
-              border
-              onClick={() => setViewMode((v) => (v === 'split' ? 'modern' : 'split'))}
-              className="hidden sm:inline-flex gap-1.5 text-xs bg-black border-white/25 text-white"
-            >
-              <ColumnsIcon className="w-3.5 h-3.5 text-emerald-400" weight="duotone" />
-              Split 3270
-            </Button>
-
-            {/* Full 3270 CRT Toggle */}
-            <Button
-              variant={viewMode === '3270' ? 'default' : 'glass'}
-              size="sm"
-              border
-              onClick={() => setViewMode((v) => (v === '3270' ? 'modern' : '3270'))}
-              className="gap-1 font-mono text-xs bg-black border-emerald-500/60 text-emerald-400"
-            >
-              <TerminalWindowIcon className="w-3.5 h-3.5" weight="duotone" />
-              {viewMode === '3270' ? 'Modern UI' : '3270 CRT'}
-              <Kbd className="hidden sm:inline-flex ml-1 text-[10px]">F12</Kbd>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Slide-Over Command Drawer */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/80"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <aside className="relative z-10 w-80 max-w-[85vw] bg-[#060a07] border-r border-emerald-500/50 p-4 overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/20">
-              <span className="font-mono text-xs font-bold text-emerald-400">
-                AS/400 COMMAND MENU (21 BMS MAPS)
-              </span>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-1 text-white/70 hover:text-white"
-              >
-                <XIcon className="w-4 h-4" />
-              </button>
-            </div>
-            {renderCommandSidebarContent()}
-          </aside>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      {viewMode === '3270' ? (
-        <main className="flex-1 bg-black p-3 sm:p-6 flex items-center justify-center">
-          <div className="w-full max-w-5xl">{render3270Panel()}</div>
-        </main>
-      ) : (
-        <div className="flex-1 max-w-[1760px] w-full mx-auto flex flex-col lg:flex-row gap-5 px-3 sm:px-5 py-4">
-          {/* Persistent Desktop AS/400 Command Sidebar */}
-          <aside className="hidden lg:block w-72 shrink-0">
-            <div className="sticky top-16 bg-[#070b08] border border-white/25 rounded-xl p-3.5 max-h-[calc(100vh-5rem)] overflow-y-auto">
-              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/20">
-                <span className="font-mono text-xs font-bold text-emerald-400">
-                  AS/400 COMMAND SIDEBAR
-                </span>
-                <span className="font-mono text-[10px] text-white/60">21 SCREENS</span>
-              </div>
-              {renderCommandSidebarContent()}
-            </div>
-          </aside>
-
-          {/* Main Workstation Window Area */}
-          <main className="flex-1 min-w-0 space-y-4">
+  const renderModernWorkstationContent = () => (
+    <div className="space-y-4">
             {/* Active Window Status Bar */}
             <div className="bg-[#070b08] border border-white/25 rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -1413,20 +1203,9 @@ export function App() {
               </Card>
             </div>
 
-            {/* Split Mode Side-by-Side Container */}
-            <div
-              className={
-                viewMode === 'split'
-                  ? 'grid grid-cols-1 xl:grid-cols-12 gap-4 items-start'
-                  : 'space-y-4'
-              }
-            >
-              {viewMode === 'split' && (
-                <div className="xl:col-span-5 xl:sticky xl:top-16">{render3270Panel()}</div>
-              )}
 
-              <div className={viewMode === 'split' ? 'xl:col-span-7 min-w-0 space-y-4' : 'space-y-4'}>
-                {/* =====================================================================
+      <div className="space-y-4">
+        {/* =====================================================================
                     WINDOW 1: CAVW — CUSTOMER & ACCOUNT SEARCH + MASTER INQUIRY (COACTVW)
                    ===================================================================== */}
                 {activeWindow === 'CAVW' && (
@@ -2996,11 +2775,298 @@ export function App() {
                     </div>
                   </div>
                 )}
-              </div>
+
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#040705] text-white relative flex flex-col selection:bg-emerald-500 selection:text-black">
+      <AutoForeground />
+
+      {/* Top AS/400 Workstation Header Bar */}
+      <header className="sticky top-0 z-40 bg-[#060a07] border-b border-white/25 px-3 sm:px-5 py-2.5">
+        <div className="max-w-[1760px] mx-auto flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Mobile Drawer Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="lg:hidden p-2 rounded-lg bg-black border border-emerald-500/60 text-emerald-400 hover:bg-emerald-950"
+              aria-label="Toggle AS/400 Command Menu"
+            >
+              {mobileMenuOpen ? <XIcon className="w-5 h-5" /> : <ListIcon className="w-5 h-5" />}
+            </button>
+
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-black border border-emerald-400/70 flex items-center justify-center shadow-[0_0_12px_rgba(74,222,128,0.2)]">
+              <TerminalWindowIcon className="w-5 h-5 text-emerald-400" weight="duotone" />
             </div>
-          </main>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono font-bold tracking-tight text-sm sm:text-base text-white">
+                  IBM i / AS400 <span className="text-emerald-400">CardDemo Workstation</span>
+                </span>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-mono text-[11px]">
+                  {activeWindowDef.tranCode} • {activeWindowDef.cobolProg}
+                </span>
+              </div>
+              <p className="text-[11px] text-white/70 truncate">
+                21 BMS Screens • 44 COBOL Modules • VSAM + DB2 + IMS • SQLite WAL
+              </p>
+            </div>
+          </div>
+
+          {/* Right Controls */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {parityReport && (
+              <Badge
+                variant="glass"
+                border
+                className="hidden md:inline-flex h-7 px-2.5 gap-1.5 text-[11px] font-mono bg-black border-emerald-400/50 text-emerald-300"
+              >
+                <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" weight="fill" />
+                Parity: {parityReport.accounts_matched}/{parityReport.accounts_verified} ($
+                {parityReport.max_cent_drift})
+              </Badge>
+            )}
+
+            {/* Motion Dev Reveal Slider: AS/400 3270 ↔ Modernized Interface */}
+            <div className="flex items-center gap-2 bg-black/60 dark:bg-black/60 border border-emerald-500/40 rounded-xl px-2.5 py-1.5 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+              <span
+                className={`text-[11px] font-mono font-bold flex items-center gap-1 transition-colors ${
+                  revealPercent < 50 ? 'text-emerald-400' : 'text-white/60'
+                }`}
+              >
+                <TerminalWindowIcon className="w-4 h-4 text-emerald-400" weight="duotone" />
+                <span className="hidden sm:inline">AS/400</span>
+              </span>
+
+              <div className="relative flex items-center w-24 sm:w-36 md:w-48 h-6">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={revealPercent}
+                  onChange={(e) => setRevealPercent(Number(e.target.value))}
+                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-emerald-950/60 rounded-lg appearance-none border border-emerald-500/30"
+                  aria-label="Reveal Modern Workstation Slider"
+                />
+              </div>
+
+              <span
+                className={`text-[11px] font-bold flex items-center gap-1 transition-colors ${
+                  revealPercent >= 50 ? 'text-emerald-400' : 'text-white/60'
+                }`}
+              >
+                <SparkleIcon className="w-4 h-4 text-emerald-400" weight="fill" />
+                <span className="hidden sm:inline">Modern UI</span>
+              </span>
+
+              <Badge
+                variant="glass"
+                border
+                className="font-mono text-[10px] px-1.5 py-0.5 bg-black/80 border-emerald-500/50 text-emerald-300 font-bold shrink-0"
+              >
+                {revealPercent === 0 ? '📟 AS/400' : revealPercent === 100 ? '✨ MODERN' : `${revealPercent}%`}
+              </Badge>
+            </div>
+
+            {/* Surface Material Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  border
+                  className="gap-1 text-xs bg-black border-white/25 text-white hover:border-emerald-400"
+                >
+                  <DiamondIcon className="w-3.5 h-3.5 text-emerald-400" weight="duotone" />
+                  <span className="hidden sm:inline capitalize">{glassMaterial}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-[#070b08] border-white/25 text-white">
+                <DropdownMenuLabel className="text-xs text-emerald-400">
+                  Workstation Surface
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {SISTINE_MATERIALS.map((m) => (
+                  <DropdownMenuItem
+                    key={m.value}
+                    onClick={() => setGlassMaterial(m.value)}
+                    className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
+                  >
+                    <div className="flex w-full items-center justify-between font-medium text-xs">
+                      <span>{m.label}</span>
+                      {glassMaterial === m.value && (
+                        <span className="text-[10px] text-emerald-400 font-mono">ACTIVE</span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-white/60">{m.desc}</span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-emerald-400">
+                  Phosphor &amp; Tint
+                </DropdownMenuLabel>
+                {SISTINE_TINTS.map((t) => (
+                  <DropdownMenuItem
+                    key={t.value}
+                    onClick={() => setGlassTint(t.value)}
+                    className="flex items-center justify-between text-xs cursor-pointer"
+                  >
+                    <span>{t.label}</span>
+                    {glassTint === t.value && <span className="text-emerald-400">●</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Run JCL Nightly Batch */}
+            <Button
+              variant="default"
+              size="sm"
+              disabled={isRunningBatch}
+              onClick={handleRunNightlyBatch}
+              className="gap-1.5 font-mono text-xs bg-emerald-500 text-black font-bold hover:bg-emerald-400"
+            >
+              <PlayIcon className="w-3.5 h-3.5" weight="fill" />
+              <span className="hidden sm:inline">
+                {isRunningBatch ? 'Running JCL...' : 'Run Nightly JCL'}
+              </span>
+              <span className="sm:hidden">JCL</span>
+            </Button>
+
+
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Slide-Over Command Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/80"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside className="relative z-10 w-80 max-w-[85vw] bg-[#060a07] border-r border-emerald-500/50 p-4 overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/20">
+              <span className="font-mono text-xs font-bold text-emerald-400">
+                AS/400 COMMAND MENU (21 BMS MAPS)
+              </span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1 text-white/70 hover:text-white"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+            {renderCommandSidebarContent()}
+          </aside>
         </div>
       )}
+
+      {/* Motion Dev Main Content Stage */}
+      <AnimatePresence mode="wait">
+        {revealPercent === 0 ? (
+          <motion.div
+            key="as400-default"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 max-w-[1760px] w-full mx-auto flex flex-col lg:flex-row gap-5 px-3 sm:px-5 py-4"
+          >
+            {/* Desktop AS/400 Command Sidebar */}
+            <aside className="hidden lg:block w-72 shrink-0">
+              <div className="sticky top-16 bg-[#070b08] border border-emerald-500/40 rounded-xl p-3.5 max-h-[calc(100vh-5rem)] overflow-y-auto">
+                <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-emerald-500/30">
+                  <span className="font-mono text-xs font-bold text-emerald-400">
+                    AS/400 COMMAND MENU
+                  </span>
+                  <span className="font-mono text-[10px] text-white/60">21 SCREENS</span>
+                </div>
+                {renderCommandSidebarContent()}
+              </div>
+            </aside>
+
+            {/* Main AS/400 3270 CRT Workstation */}
+            <main className="flex-1 min-w-0 flex flex-col items-center justify-start space-y-3">
+              <div className="w-full flex items-center justify-between text-xs text-emerald-400 font-mono px-1">
+                <span className="font-bold flex items-center gap-2">
+                  <TerminalWindowIcon className="w-4 h-4 text-emerald-400" />
+                  IBM AS/400 3270 DISPLAY STATION (MODEL 3278-2 • 24x80)
+                </span>
+                <span className="text-white/60 hidden sm:inline">
+                  SLIDE TRACKER TO REVEAL MODERN WORKSTATION ➔
+                </span>
+              </div>
+              <div className="w-full max-w-5xl">{render3270Panel()}</div>
+            </main>
+          </motion.div>
+        ) : revealPercent === 100 ? (
+          <motion.div
+            key="modern-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 max-w-[1760px] w-full mx-auto flex flex-col lg:flex-row gap-5 px-3 sm:px-5 py-4"
+          >
+            {/* Desktop AS/400 Command Sidebar */}
+            <aside className="hidden lg:block w-72 shrink-0">
+              <div className="sticky top-16 bg-[#070b08] border border-white/25 rounded-xl p-3.5 max-h-[calc(100vh-5rem)] overflow-y-auto">
+                <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/20">
+                  <span className="font-mono text-xs font-bold text-emerald-400">
+                    AS/400 COMMAND SIDEBAR
+                  </span>
+                  <span className="font-mono text-[10px] text-white/60">21 SCREENS</span>
+                </div>
+                {renderCommandSidebarContent()}
+              </div>
+            </aside>
+
+            {/* Main Modern Workstation Window */}
+            <main className="flex-1 min-w-0 space-y-4">
+              {renderModernWorkstationContent()}
+            </main>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="split-reveal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex-1 max-w-[1760px] w-full mx-auto flex flex-col gap-4 px-3 sm:px-5 py-4"
+          >
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+              {/* Left Column: Authentic 3270 Terminal */}
+              <div className="xl:col-span-5 xl:sticky xl:top-16 space-y-2">
+                <div className="flex items-center justify-between text-xs font-mono text-emerald-400 px-1">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <TerminalWindowIcon className="w-3.5 h-3.5" />
+                    IBM AS/400 (3270 CRT)
+                  </span>
+                  <span className="text-white/60">LIVE SYNC</span>
+                </div>
+                {render3270Panel()}
+              </div>
+
+              {/* Right Column: Modern Workstation */}
+              <div className="xl:col-span-7 min-w-0 space-y-4">
+                <div className="flex items-center justify-between text-xs font-mono text-emerald-400 px-1">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <SparkleIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    MODERN WORKSTATION (REACT 19 + RUST)
+                  </span>
+                  <span className="text-white/60">REVEAL {revealPercent}%</span>
+                </div>
+                {renderModernWorkstationContent()}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
