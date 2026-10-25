@@ -19,7 +19,6 @@ use cics_engine::{
 use db::init_db;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::{
     env,
     path::PathBuf,
@@ -39,6 +38,33 @@ struct AppState {
 }
 
 #[derive(Serialize)]
+struct ManagedAgentInfoDto {
+    agent: &'static str,
+    model: &'static str,
+    context_window: &'static str,
+    files_ingested: u32,
+    artifact_families: u32,
+}
+
+#[derive(Serialize)]
+struct SystemCountsDto {
+    transactions_in_db: i64,
+    db2_transaction_types: i64,
+    db2_transaction_categories: i64,
+    ims_pending_authorizations: i64,
+    db2_fraud_alerts: i64,
+}
+
+#[derive(Serialize)]
+struct OverviewResponseDto {
+    status: &'static str,
+    engine: &'static str,
+    managed_agent: ManagedAgentInfoDto,
+    counts: SystemCountsDto,
+    latest_parity_report: BatchParityReport,
+}
+
+#[derive(Serialize)]
 struct AccountSummaryDto {
     acct_id: String,
     active_status: String,
@@ -55,6 +81,208 @@ struct AccountSummaryDto {
     customer_name: String,
     fico_score: i32,
     card_num: String,
+}
+
+#[derive(Serialize)]
+struct CustomerDetailDto {
+    cust_id: String,
+    first_name: String,
+    middle_name: String,
+    last_name: String,
+    address: String,
+    phone: String,
+    ssn: String,
+    dob: String,
+    fico_score: i32,
+}
+
+#[derive(Serialize)]
+struct AccountMasterDto {
+    acct_id: String,
+    active_status: String,
+    initial_bal: String,
+    curr_bal: String,
+    curr_bal_overpunch: String,
+    vsam_fixed_width_preview: String,
+    credit_limit: String,
+    cash_credit_limit: String,
+    open_date: String,
+    expiration_date: String,
+    reissue_date: String,
+    curr_cyc_credit: String,
+    curr_cyc_debit: String,
+    addr_zip: String,
+    group_id: String,
+    customer: CustomerDetailDto,
+    card_num: String,
+}
+
+#[derive(Serialize)]
+struct AccountTransactionDto {
+    tran_id: String,
+    type_cd: String,
+    cat_cd: String,
+    source: String,
+    description: String,
+    amt: String,
+    merchant_name: String,
+    orig_ts: String,
+}
+
+#[derive(Serialize)]
+struct CategoryBalanceDto {
+    tran_type_cd: String,
+    tran_cat_cd: String,
+    tran_cat_bal: String,
+}
+
+#[derive(Serialize)]
+struct AccountDetailResponseDto {
+    account: AccountMasterDto,
+    transactions: Vec<AccountTransactionDto>,
+    category_balances: Vec<CategoryBalanceDto>,
+}
+
+#[derive(Serialize)]
+struct BillPayResponseDto {
+    acct_id: String,
+    previous_balance: String,
+    new_balance: String,
+    tran_id: Option<String>,
+    message: String,
+    execution_ms: f64,
+    legacy_green_screen_seconds: f64,
+}
+
+#[derive(Serialize)]
+struct UpdateAccountResponseDto {
+    acct_id: String,
+    credit_limit: String,
+    active_status: String,
+    message: String,
+}
+
+#[derive(Serialize)]
+struct TransactionRowDto {
+    tran_id: String,
+    acct_id: String,
+    type_cd: String,
+    cat_cd: String,
+    source: String,
+    description: String,
+    amt: String,
+    merchant_name: String,
+    merchant_city: String,
+    card_num: String,
+    orig_ts: String,
+}
+
+#[derive(Serialize)]
+struct DailyRejectDto {
+    tran_id: String,
+    card_num: String,
+    acct_id: String,
+    amt: String,
+    orig_ts: String,
+    fail_reason: i32,
+    fail_desc: String,
+}
+
+#[derive(Serialize)]
+struct Db2TransactionTypeDto {
+    tr_type: String,
+    tr_description: String,
+}
+
+#[derive(Serialize)]
+struct Db2TransactionCategoryDto {
+    trc_type_code: String,
+    trc_type_category: String,
+    trc_cat_data: String,
+}
+
+#[derive(Serialize)]
+struct Db2CatalogResponseDto {
+    sqlcode: i32,
+    transaction_types: Vec<Db2TransactionTypeDto>,
+    transaction_categories: Vec<Db2TransactionCategoryDto>,
+}
+
+#[derive(Serialize)]
+struct Db2MutationResponseDto {
+    sqlcode: i32,
+    message: String,
+}
+
+#[derive(Serialize)]
+struct ImsAuthSummaryDto {
+    acct_id: String,
+    cust_id: String,
+    auth_status: String,
+    credit_limit: String,
+    cash_limit: String,
+    credit_balance: String,
+    approved_auth_cnt: i32,
+    declined_auth_cnt: i32,
+    approved_auth_amt: String,
+    declined_auth_amt: String,
+}
+
+#[derive(Serialize)]
+struct ImsAuthDetailDto {
+    acct_id: String,
+    auth_date_9c: i32,
+    auth_time_9c: i32,
+    auth_orig_date: String,
+    auth_orig_time: String,
+    card_num: String,
+    transaction_amt: String,
+    approved_amt: String,
+    auth_resp_code: String,
+    auth_resp_reason: String,
+    merchant_name: String,
+    merchant_city: String,
+    merchant_state: String,
+    match_status: String,
+    auth_fraud: String,
+    fraud_rpt_date: String,
+}
+
+#[derive(Serialize)]
+struct Db2FraudRecordDto {
+    card_num: String,
+    auth_ts: String,
+    acct_id: String,
+    cust_id: String,
+    transaction_amt: String,
+    merchant_name: String,
+    auth_fraud: String,
+    fraud_rpt_date: String,
+}
+
+#[derive(Serialize)]
+struct ImsAuthorizationsResponseDto {
+    summaries: Vec<ImsAuthSummaryDto>,
+    details: Vec<ImsAuthDetailDto>,
+    db2_fraud_table: Vec<Db2FraudRecordDto>,
+}
+
+#[derive(Serialize)]
+struct MqAuthorizeResponseDto {
+    acct_id: String,
+    approved: bool,
+    auth_resp_code: String,
+    auth_resp_reason: String,
+    auth_date_9c: i32,
+    auth_time_9c: i32,
+    message: String,
+}
+
+#[derive(Serialize)]
+struct FraudToggleResponseDto {
+    acct_id: String,
+    auth_fraud: String,
+    message: String,
 }
 
 #[derive(Deserialize)]
@@ -150,8 +378,8 @@ async fn main() -> Result<(), String> {
     let app = Router::new()
         .route("/api/overview", get(get_overview))
         .route("/api/accounts", get(list_accounts))
-        .route("/api/accounts/:id", get(get_account_detail).put(update_account))
-        .route("/api/accounts/:id/bill-pay", post(post_bill_pay))
+        .route("/api/accounts/{id}", get(get_account_detail).put(update_account))
+        .route("/api/accounts/{id}/bill-pay", post(post_bill_pay))
         .route("/api/transactions", get(list_transactions))
         .route("/api/rejects", get(list_rejects))
         .route("/api/db2/tx-types", get(list_db2_tx_types).post(mutate_db2_tx_types))
@@ -165,7 +393,7 @@ async fn main() -> Result<(), String> {
         .with_state(state);
 
     let addr = "0.0.0.0:8080";
-    println!("🚀 CardDemo Modern Rust Core + React 19 Workbench listening on http://localhost:8080");
+    println!("🚀 CardDemo Modern Rust Core + Sistine Glass UI listening on http://localhost:8080");
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| e.to_string())?;
@@ -173,7 +401,7 @@ async fn main() -> Result<(), String> {
     Ok(())
 }
 
-async fn get_overview(State(state): State<AppState>) -> Json<Value> {
+async fn get_overview(State(state): State<AppState>) -> Json<OverviewResponseDto> {
     let report = state.latest_report.lock().unwrap().clone();
     let conn = state.db.lock().unwrap();
     let tx_count: i64 = conn
@@ -196,28 +424,30 @@ async fn get_overview(State(state): State<AppState>) -> Json<Value> {
         .query_row("SELECT COUNT(*) FROM db2_auth_fraud", [], |r| r.get(0))
         .unwrap_or(0);
 
-    Json(json!({
-        "status": "ONLINE",
-        "engine": "Safe Rust (#![forbid(unsafe_code)]) + SQLite + rust_decimal",
-        "managed_agent": {
-            "agent": "antigravity-preview-09-2026",
-            "model": "gemini-4-argon",
-            "context_window": "1,000,000 tokens",
-            "files_ingested": 122,
-            "artifact_families": 8
+    Json(OverviewResponseDto {
+        status: "ONLINE",
+        engine: "Safe Rust (#![forbid(unsafe_code)]) + SQLite + rust_decimal",
+        managed_agent: ManagedAgentInfoDto {
+            agent: "antigravity-preview-09-2026",
+            model: "gemini-4-argon",
+            context_window: "1,000,000 tokens",
+            files_ingested: 122,
+            artifact_families: 8,
         },
-        "counts": {
-            "transactions_in_db": tx_count,
-            "db2_transaction_types": db2_types,
-            "db2_transaction_categories": db2_cats,
-            "ims_pending_authorizations": ims_auths,
-            "db2_fraud_alerts": fraud_alerts
+        counts: SystemCountsDto {
+            transactions_in_db: tx_count,
+            db2_transaction_types: db2_types,
+            db2_transaction_categories: db2_cats,
+            ims_pending_authorizations: ims_auths,
+            db2_fraud_alerts: fraud_alerts,
         },
-        "latest_parity_report": report
-    }))
+        latest_parity_report: report,
+    })
 }
 
-async fn list_accounts(State(state): State<AppState>) -> Result<Json<Vec<AccountSummaryDto>>, StatusCode> {
+async fn list_accounts(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<AccountSummaryDto>>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn
         .prepare(
@@ -266,7 +496,7 @@ async fn list_accounts(State(state): State<AppState>) -> Result<Json<Vec<Account
 async fn get_account_detail(
     State(state): State<AppState>,
     AxumPath(acct_id): AxumPath<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<AccountDetailResponseDto>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let acct = conn
         .query_row(
@@ -314,35 +544,41 @@ async fn get_account_detail(
                     group_id: grp_s.clone(),
                 };
                 let vsam_300b = rec.to_fixed_width().trim_end().to_string();
-                Ok(json!({
-                    "acct_id": id_s,
-                    "active_status": active_s,
-                    "initial_bal": init_s,
-                    "curr_bal": curr_s,
-                    "curr_bal_overpunch": format_overpunch(curr_dec, 12, 2),
-                    "vsam_fixed_width_preview": vsam_300b,
-                    "credit_limit": cred_s,
-                    "cash_credit_limit": cash_s,
-                    "open_date": open_s,
-                    "expiration_date": exp_s,
-                    "reissue_date": reis_s,
-                    "curr_cyc_credit": cyc_c_s,
-                    "curr_cyc_debit": cyc_d_s,
-                    "addr_zip": zip_s,
-                    "group_id": grp_s,
-                    "customer": {
-                        "cust_id": r.get::<_, String>(13)?,
-                        "first_name": r.get::<_, String>(14)?,
-                        "middle_name": r.get::<_, String>(15)?,
-                        "last_name": r.get::<_, String>(16)?,
-                        "address": format!("{}, {}, {} {}", r.get::<_, String>(17)?, r.get::<_, String>(18)?, r.get::<_, String>(19)?, r.get::<_, String>(20)?),
-                        "phone": r.get::<_, String>(21)?,
-                        "ssn": r.get::<_, String>(22)?,
-                        "dob": r.get::<_, String>(23)?,
-                        "fico_score": r.get::<_, i32>(24)?
+                Ok(AccountMasterDto {
+                    acct_id: id_s,
+                    active_status: active_s,
+                    initial_bal: init_s,
+                    curr_bal: curr_s,
+                    curr_bal_overpunch: format_overpunch(curr_dec, 12, 2),
+                    vsam_fixed_width_preview: vsam_300b,
+                    credit_limit: cred_s,
+                    cash_credit_limit: cash_s,
+                    open_date: open_s,
+                    expiration_date: exp_s,
+                    reissue_date: reis_s,
+                    curr_cyc_credit: cyc_c_s,
+                    curr_cyc_debit: cyc_d_s,
+                    addr_zip: zip_s,
+                    group_id: grp_s,
+                    customer: CustomerDetailDto {
+                        cust_id: r.get(13)?,
+                        first_name: r.get(14)?,
+                        middle_name: r.get(15)?,
+                        last_name: r.get(16)?,
+                        address: format!(
+                            "{}, {}, {} {}",
+                            r.get::<_, String>(17)?,
+                            r.get::<_, String>(18)?,
+                            r.get::<_, String>(19)?,
+                            r.get::<_, String>(20)?
+                        ),
+                        phone: r.get(21)?,
+                        ssn: r.get(22)?,
+                        dob: r.get(23)?,
+                        fico_score: r.get(24)?,
                     },
-                    "card_num": r.get::<_, String>(25)?
-                }))
+                    card_num: r.get(25)?,
+                })
             },
         )
         .map_err(|_| StatusCode::NOT_FOUND)?;
@@ -353,18 +589,18 @@ async fn get_account_detail(
              FROM transactions WHERE acct_id = ?1 ORDER BY tran_id DESC",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let txs: Vec<Value> = tx_stmt
+    let txs: Vec<AccountTransactionDto> = tx_stmt
         .query_map(params![acct_id], |r| {
-            Ok(json!({
-                "tran_id": r.get::<_, String>(0)?,
-                "type_cd": r.get::<_, String>(1)?,
-                "cat_cd": r.get::<_, String>(2)?,
-                "source": r.get::<_, String>(3)?,
-                "description": r.get::<_, String>(4)?,
-                "amt": r.get::<_, String>(5)?,
-                "merchant_name": r.get::<_, String>(6)?,
-                "orig_ts": r.get::<_, String>(7)?
-            }))
+            Ok(AccountTransactionDto {
+                tran_id: r.get(0)?,
+                type_cd: r.get(1)?,
+                cat_cd: r.get(2)?,
+                source: r.get(3)?,
+                description: r.get(4)?,
+                amt: r.get(5)?,
+                merchant_name: r.get(6)?,
+                orig_ts: r.get(7)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
@@ -376,30 +612,30 @@ async fn get_account_detail(
              FROM tran_cat_balances WHERE acct_id = ?1 ORDER BY tran_type_cd, tran_cat_cd",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let cat_bals: Vec<Value> = cat_stmt
+    let cat_bals: Vec<CategoryBalanceDto> = cat_stmt
         .query_map(params![acct_id], |r| {
-            Ok(json!({
-                "tran_type_cd": r.get::<_, String>(0)?,
-                "tran_cat_cd": r.get::<_, String>(1)?,
-                "tran_cat_bal": r.get::<_, String>(2)?
-            }))
+            Ok(CategoryBalanceDto {
+                tran_type_cd: r.get(0)?,
+                tran_cat_cd: r.get(1)?,
+                tran_cat_bal: r.get(2)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
         .collect();
 
-    Ok(Json(json!({
-        "account": acct,
-        "transactions": txs,
-        "category_balances": cat_bals
-    })))
+    Ok(Json(AccountDetailResponseDto {
+        account: acct,
+        transactions: txs,
+        category_balances: cat_bals,
+    }))
 }
 
 async fn post_bill_pay(
     State(state): State<AppState>,
     AxumPath(acct_id): AxumPath<String>,
     Json(req): Json<BillPayRequest>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<BillPayResponseDto>, StatusCode> {
     let t0 = Instant::now();
     let mut conn = state.db.lock().unwrap();
     let (prev_bal, new_bal, tran_id, message) =
@@ -407,39 +643,42 @@ async fn post_bill_pay(
             .map_err(|_| StatusCode::BAD_REQUEST)?;
     let latency_ms = (t0.elapsed().as_secs_f64() * 1000.0 * 100.0).round() / 100.0;
 
-    Ok(Json(json!({
-        "acct_id": acct_id,
-        "previous_balance": fmt_money(prev_bal),
-        "new_balance": fmt_money(new_bal),
-        "tran_id": tran_id,
-        "message": message,
-        "execution_ms": latency_ms,
-        "legacy_green_screen_seconds": 54.0
-    })))
+    Ok(Json(BillPayResponseDto {
+        acct_id,
+        previous_balance: fmt_money(prev_bal),
+        new_balance: fmt_money(new_bal),
+        tran_id,
+        message,
+        execution_ms: latency_ms,
+        legacy_green_screen_seconds: 54.0,
+    }))
 }
 
 async fn update_account(
     State(state): State<AppState>,
     AxumPath(acct_id): AxumPath<String>,
     Json(req): Json<UpdateAccountRequest>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<UpdateAccountResponseDto>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let lim = fmt_money(parse_money(&req.credit_limit));
+    let active_status = req.active_status.trim().to_uppercase();
     conn.execute(
         "UPDATE accounts SET credit_limit = ?1, active_status = ?2 WHERE acct_id = ?3",
-        params![lim, req.active_status.trim().to_uppercase(), acct_id],
+        params![lim, active_status, acct_id],
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(json!({
-        "acct_id": acct_id,
-        "credit_limit": lim,
-        "active_status": req.active_status.trim().to_uppercase(),
-        "message": format!("CHANGES TO ACCOUNT {} SAVED (COACTUPC)", acct_id)
-    })))
+    Ok(Json(UpdateAccountResponseDto {
+        message: format!("CHANGES TO ACCOUNT {} SAVED (COACTUPC)", acct_id),
+        acct_id,
+        credit_limit: lim,
+        active_status,
+    }))
 }
 
-async fn list_transactions(State(state): State<AppState>) -> Result<Json<Vec<Value>>, StatusCode> {
+async fn list_transactions(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<TransactionRowDto>>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn
         .prepare(
@@ -448,21 +687,21 @@ async fn list_transactions(State(state): State<AppState>) -> Result<Json<Vec<Val
              FROM transactions ORDER BY tran_id DESC LIMIT 120",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let rows: Vec<Value> = stmt
+    let rows: Vec<TransactionRowDto> = stmt
         .query_map([], |r| {
-            Ok(json!({
-                "tran_id": r.get::<_, String>(0)?,
-                "acct_id": r.get::<_, String>(1)?,
-                "type_cd": r.get::<_, String>(2)?,
-                "cat_cd": r.get::<_, String>(3)?,
-                "source": r.get::<_, String>(4)?,
-                "description": r.get::<_, String>(5)?,
-                "amt": r.get::<_, String>(6)?,
-                "merchant_name": r.get::<_, String>(7)?,
-                "merchant_city": r.get::<_, String>(8)?,
-                "card_num": r.get::<_, String>(9)?,
-                "orig_ts": r.get::<_, String>(10)?
-            }))
+            Ok(TransactionRowDto {
+                tran_id: r.get(0)?,
+                acct_id: r.get(1)?,
+                type_cd: r.get(2)?,
+                cat_cd: r.get(3)?,
+                source: r.get(4)?,
+                description: r.get(5)?,
+                amt: r.get(6)?,
+                merchant_name: r.get(7)?,
+                merchant_city: r.get(8)?,
+                card_num: r.get(9)?,
+                orig_ts: r.get(10)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
@@ -470,7 +709,9 @@ async fn list_transactions(State(state): State<AppState>) -> Result<Json<Vec<Val
     Ok(Json(rows))
 }
 
-async fn list_rejects(State(state): State<AppState>) -> Result<Json<Vec<Value>>, StatusCode> {
+async fn list_rejects(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<DailyRejectDto>>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn
         .prepare(
@@ -478,17 +719,17 @@ async fn list_rejects(State(state): State<AppState>) -> Result<Json<Vec<Value>>,
              FROM daily_rejects ORDER BY tran_id",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let rows: Vec<Value> = stmt
+    let rows: Vec<DailyRejectDto> = stmt
         .query_map([], |r| {
-            Ok(json!({
-                "tran_id": r.get::<_, String>(0)?,
-                "card_num": r.get::<_, String>(1)?,
-                "acct_id": r.get::<_, String>(2)?,
-                "amt": r.get::<_, String>(3)?,
-                "orig_ts": r.get::<_, String>(4)?,
-                "fail_reason": r.get::<_, i32>(5)?,
-                "fail_desc": r.get::<_, String>(6)?
-            }))
+            Ok(DailyRejectDto {
+                tran_id: r.get(0)?,
+                card_num: r.get(1)?,
+                acct_id: r.get(2)?,
+                amt: r.get(3)?,
+                orig_ts: r.get(4)?,
+                fail_reason: r.get(5)?,
+                fail_desc: r.get(6)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
@@ -496,17 +737,19 @@ async fn list_rejects(State(state): State<AppState>) -> Result<Json<Vec<Value>>,
     Ok(Json(rows))
 }
 
-async fn list_db2_tx_types(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
+async fn list_db2_tx_types(
+    State(state): State<AppState>,
+) -> Result<Json<Db2CatalogResponseDto>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let mut stmt1 = conn
         .prepare("SELECT tr_type, tr_description FROM db2_transaction_type ORDER BY tr_type")
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let types: Vec<Value> = stmt1
+    let types: Vec<Db2TransactionTypeDto> = stmt1
         .query_map([], |r| {
-            Ok(json!({
-                "tr_type": r.get::<_, String>(0)?,
-                "tr_description": r.get::<_, String>(1)?
-            }))
+            Ok(Db2TransactionTypeDto {
+                tr_type: r.get(0)?,
+                tr_description: r.get(1)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
@@ -518,29 +761,29 @@ async fn list_db2_tx_types(State(state): State<AppState>) -> Result<Json<Value>,
              FROM db2_transaction_type_category ORDER BY trc_type_code, trc_type_category",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let categories: Vec<Value> = stmt2
+    let categories: Vec<Db2TransactionCategoryDto> = stmt2
         .query_map([], |r| {
-            Ok(json!({
-                "trc_type_code": r.get::<_, String>(0)?,
-                "trc_type_category": r.get::<_, String>(1)?,
-                "trc_cat_data": r.get::<_, String>(2)?
-            }))
+            Ok(Db2TransactionCategoryDto {
+                trc_type_code: r.get(0)?,
+                trc_type_category: r.get(1)?,
+                trc_cat_data: r.get(2)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
         .collect();
 
-    Ok(Json(json!({
-        "sqlcode": 0,
-        "transaction_types": types,
-        "transaction_categories": categories
-    })))
+    Ok(Json(Db2CatalogResponseDto {
+        sqlcode: 0,
+        transaction_types: types,
+        transaction_categories: categories,
+    }))
 }
 
 async fn mutate_db2_tx_types(
     State(state): State<AppState>,
     Json(req): Json<Db2ActionRequest>,
-) -> Json<Value> {
+) -> Json<Db2MutationResponseDto> {
     let conn = state.db.lock().unwrap();
     let code = req.tr_type.trim().to_string();
     let desc = req.tr_description.trim().to_string();
@@ -588,13 +831,12 @@ async fn mutate_db2_tx_types(
         _ => (-104, "INVALID DB2 OPERATION".to_string()),
     };
 
-    Json(json!({
-        "sqlcode": sqlcode,
-        "message": message
-    }))
+    Json(Db2MutationResponseDto { sqlcode, message })
 }
 
-async fn list_ims_authorizations(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
+async fn list_ims_authorizations(
+    State(state): State<AppState>,
+) -> Result<Json<ImsAuthorizationsResponseDto>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let mut s_stmt = conn
         .prepare(
@@ -603,20 +845,20 @@ async fn list_ims_authorizations(State(state): State<AppState>) -> Result<Json<V
              FROM ims_pending_auth_summary ORDER BY acct_id",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let summaries: Vec<Value> = s_stmt
+    let summaries: Vec<ImsAuthSummaryDto> = s_stmt
         .query_map([], |r| {
-            Ok(json!({
-                "acct_id": r.get::<_, String>(0)?,
-                "cust_id": r.get::<_, String>(1)?,
-                "auth_status": r.get::<_, String>(2)?,
-                "credit_limit": r.get::<_, String>(3)?,
-                "cash_limit": r.get::<_, String>(4)?,
-                "credit_balance": r.get::<_, String>(5)?,
-                "approved_auth_cnt": r.get::<_, i32>(6)?,
-                "declined_auth_cnt": r.get::<_, i32>(7)?,
-                "approved_auth_amt": r.get::<_, String>(8)?,
-                "declined_auth_amt": r.get::<_, String>(9)?
-            }))
+            Ok(ImsAuthSummaryDto {
+                acct_id: r.get(0)?,
+                cust_id: r.get(1)?,
+                auth_status: r.get(2)?,
+                credit_limit: r.get(3)?,
+                cash_limit: r.get(4)?,
+                credit_balance: r.get(5)?,
+                approved_auth_cnt: r.get(6)?,
+                declined_auth_cnt: r.get(7)?,
+                approved_auth_amt: r.get(8)?,
+                declined_auth_amt: r.get(9)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
@@ -631,26 +873,26 @@ async fn list_ims_authorizations(State(state): State<AppState>) -> Result<Json<V
              ORDER BY acct_id ASC, auth_date_9c ASC, auth_time_9c ASC",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let details: Vec<Value> = d_stmt
+    let details: Vec<ImsAuthDetailDto> = d_stmt
         .query_map([], |r| {
-            Ok(json!({
-                "acct_id": r.get::<_, String>(0)?,
-                "auth_date_9c": r.get::<_, i32>(1)?,
-                "auth_time_9c": r.get::<_, i32>(2)?,
-                "auth_orig_date": r.get::<_, String>(3)?,
-                "auth_orig_time": r.get::<_, String>(4)?,
-                "card_num": r.get::<_, String>(5)?,
-                "transaction_amt": r.get::<_, String>(6)?,
-                "approved_amt": r.get::<_, String>(7)?,
-                "auth_resp_code": r.get::<_, String>(8)?,
-                "auth_resp_reason": r.get::<_, String>(9)?,
-                "merchant_name": r.get::<_, String>(10)?,
-                "merchant_city": r.get::<_, String>(11)?,
-                "merchant_state": r.get::<_, String>(12)?,
-                "match_status": r.get::<_, String>(13)?,
-                "auth_fraud": r.get::<_, String>(14)?,
-                "fraud_rpt_date": r.get::<_, String>(15)?
-            }))
+            Ok(ImsAuthDetailDto {
+                acct_id: r.get(0)?,
+                auth_date_9c: r.get(1)?,
+                auth_time_9c: r.get(2)?,
+                auth_orig_date: r.get(3)?,
+                auth_orig_time: r.get(4)?,
+                card_num: r.get(5)?,
+                transaction_amt: r.get(6)?,
+                approved_amt: r.get(7)?,
+                auth_resp_code: r.get(8)?,
+                auth_resp_reason: r.get(9)?,
+                merchant_name: r.get(10)?,
+                merchant_city: r.get(11)?,
+                merchant_state: r.get(12)?,
+                match_status: r.get(13)?,
+                auth_fraud: r.get(14)?,
+                fraud_rpt_date: r.get(15)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
@@ -662,34 +904,34 @@ async fn list_ims_authorizations(State(state): State<AppState>) -> Result<Json<V
              FROM db2_auth_fraud ORDER BY auth_ts DESC",
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let frauds: Vec<Value> = f_stmt
+    let frauds: Vec<Db2FraudRecordDto> = f_stmt
         .query_map([], |r| {
-            Ok(json!({
-                "card_num": r.get::<_, String>(0)?,
-                "auth_ts": r.get::<_, String>(1)?,
-                "acct_id": r.get::<_, String>(2)?,
-                "cust_id": r.get::<_, String>(3)?,
-                "transaction_amt": r.get::<_, String>(4)?,
-                "merchant_name": r.get::<_, String>(5)?,
-                "auth_fraud": r.get::<_, String>(6)?,
-                "fraud_rpt_date": r.get::<_, String>(7)?
-            }))
+            Ok(Db2FraudRecordDto {
+                card_num: r.get(0)?,
+                auth_ts: r.get(1)?,
+                acct_id: r.get(2)?,
+                cust_id: r.get(3)?,
+                transaction_amt: r.get(4)?,
+                merchant_name: r.get(5)?,
+                auth_fraud: r.get(6)?,
+                fraud_rpt_date: r.get(7)?,
+            })
         })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .filter_map(Result::ok)
         .collect();
 
-    Ok(Json(json!({
-        "summaries": summaries,
-        "details": details,
-        "db2_fraud_table": frauds
-    })))
+    Ok(Json(ImsAuthorizationsResponseDto {
+        summaries,
+        details,
+        db2_fraud_table: frauds,
+    }))
 }
 
 async fn post_mq_authorize(
     State(state): State<AppState>,
     Json(req): Json<MqAuthorizeRequest>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<MqAuthorizeResponseDto>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let amt = parse_money(&req.amount);
 
@@ -792,26 +1034,30 @@ async fn post_mq_authorize(
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(json!({
-        "acct_id": acct_id,
-        "approved": approved,
-        "auth_resp_code": resp_code,
-        "auth_resp_reason": resp_reason,
-        "auth_date_9c": auth_date_9c,
-        "auth_time_9c": auth_time_9c,
-        "message": format!(
+    Ok(Json(MqAuthorizeResponseDto {
+        acct_id,
+        approved,
+        auth_resp_code: resp_code.to_string(),
+        auth_resp_reason: resp_reason.to_string(),
+        auth_date_9c,
+        auth_time_9c,
+        message: format!(
             "MQ Authorization {} (IMS 9C Key: {}/{})",
-            if approved { "APPROVED (00)" } else { "DECLINED - OVERLIMIT (05)" },
+            if approved {
+                "APPROVED (00)"
+            } else {
+                "DECLINED - OVERLIMIT (05)"
+            },
             auth_date_9c,
             auth_time_9c
-        )
-    })))
+        ),
+    }))
 }
 
 async fn post_ims_fraud(
     State(state): State<AppState>,
     Json(req): Json<FraudToggleRequest>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<FraudToggleResponseDto>, StatusCode> {
     let conn = state.db.lock().unwrap();
     let flag = if req.mark_fraud { "F" } else { "R" };
     let rpt_date = Utc::now().format("%Y%m%d").to_string();
@@ -882,15 +1128,16 @@ async fn post_ims_fraud(
         }
     }
 
-    Ok(Json(json!({
-        "acct_id": req.acct_id,
-        "auth_fraud": flag,
-        "message": if req.mark_fraud {
+    Ok(Json(FraudToggleResponseDto {
+        acct_id: req.acct_id,
+        auth_fraud: flag.to_string(),
+        message: if req.mark_fraud {
             "IMS Segment Flagged as Fraud ('F') and Replicated to DB2 CARDDEMO.AUTHFRDS (COPAUS2C)"
+                .to_string()
         } else {
-            "Fraud Flag Removed ('R') in IMS Segment"
-        }
-    })))
+            "Fraud Flag Removed ('R') in IMS Segment".to_string()
+        },
+    }))
 }
 
 async fn post_run_nightly_batch(

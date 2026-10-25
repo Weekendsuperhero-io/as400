@@ -56,98 +56,24 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface BmsField {
-  id: string;
-  label: string;
-  row: number;
-  col: number;
-  length: number;
-  value: string;
-  editable: boolean;
-  color: string;
-}
-
-interface TerminalScreenResponse {
-  tran_id: string;
-  program_name: string;
-  mapset_name: string;
-  map_name: string;
-  title_line_1: string;
-  title_line_2: string;
-  lines: string[];
-  fields: BmsField[];
-  status_message: string;
-  sqlcode: number | null;
-  pf_keys: string;
-}
-
-interface AccountSummary {
-  acct_id: string;
-  active_status: string;
-  initial_bal: string;
-  curr_bal: string;
-  curr_bal_overpunch: string;
-  credit_limit: string;
-  cash_credit_limit: string;
-  open_date: string;
-  expiration_date: string;
-  addr_zip: string;
-  group_id: string;
-  cust_id: string;
-  customer_name: string;
-  fico_score: number;
-  card_num: string;
-}
-
-interface AccountParityDiff {
-  acct_id: string;
-  initial_bal: string;
-  post_tran_bal_rust: string;
-  post_tran_bal_golden: string;
-  interest_charged_rust: string;
-  interest_charged_golden: string;
-  final_bal_rust: string;
-  final_bal_golden: string;
-  overpunch_rust: string;
-  overpunch_golden: string;
-  cent_drift: string;
-  parity_match: boolean;
-}
-
-interface JclStepMetrics {
-  step_name: string;
-  program: string;
-  jcl_file: string;
-  return_code: number;
-  records_in: number;
-  records_out: number;
-  duration_ms: number;
-  status: string;
-}
-
-interface BatchParityReport {
-  job_name: string;
-  executed_at: string;
-  rust_execution_ms: number;
-  legacy_baseline_ms: number;
-  python_reference_ms: number;
-  speedup_vs_legacy: number;
-  accounts_verified: number;
-  accounts_matched: number;
-  parity_pct: number;
-  max_cent_drift: string;
-  total_initial_balance: string;
-  total_post_tran_balance: string;
-  total_interest_charged: string;
-  total_final_balance: string;
-  daily_tx_processed: number;
-  daily_tx_posted: number;
-  daily_tx_rejected: number;
-  interest_tx_generated: number;
-  jcl_steps: JclStepMetrics[];
-  account_diffs: AccountParityDiff[];
-}
+import type {
+  AccountDetailResponseDto,
+  AccountSummary,
+  AccountTransactionDto,
+  BatchParityReport,
+  BillPayResponseDto,
+  CategoryBalanceDto,
+  DailyRejectDto,
+  Db2CatalogResponseDto,
+  Db2MutationResponseDto,
+  FraudToggleResponseDto,
+  ImsAuthDetailDto,
+  ImsAuthorizationsResponseDto,
+  MqAuthorizeResponseDto,
+  OverviewResponseDto,
+  TerminalScreenResponse,
+  UpdateAccountResponseDto,
+} from '@/types/api';
 
 const SISTINE_MATERIALS = [
   { value: 'glass', label: 'Glass', desc: 'Adaptive translucent sheet' },
@@ -202,8 +128,8 @@ export function App() {
   const [parityReport, setParityReport] = useState<BatchParityReport | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [selectedAcctId, setSelectedAcctId] = useState<string>('00000000001');
-  const [accountDetail, setAccountDetail] = useState<any>(null);
-  const [rejects, setRejects] = useState<any[]>([]);
+  const [accountDetail, setAccountDetail] = useState<AccountDetailResponseDto | null>(null);
+  const [rejects, setRejects] = useState<DailyRejectDto[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // 3270 Terminal State (/api/cics/terminal)
@@ -221,28 +147,21 @@ export function App() {
   const [creditLimitEdit, setCreditLimitEdit] = useState<string>('2020.00');
 
   // DB2 Catalog State (/api/db2/tx-types)
-  const [db2Data, setDb2Data] = useState<{
-    sqlcode: number;
-    transaction_types: { tr_type: string; tr_description: string }[];
-    transaction_categories: {
-      trc_type_code: string;
-      trc_type_category: string;
-      trc_cat_data: string;
-    }[];
-  }>({ sqlcode: 0, transaction_types: [], transaction_categories: [] });
+  const [db2Data, setDb2Data] = useState<Db2CatalogResponseDto>({
+    sqlcode: 0,
+    transaction_types: [],
+    transaction_categories: [],
+  });
   const [db2TypeCode, setDb2TypeCode] = useState<string>('08');
   const [db2TypeDesc, setDb2TypeDesc] = useState<string>('Instant FedNow Settlement');
-  const [db2LastStatus, setDb2LastStatus] = useState<{
-    sqlcode: number;
-    message: string;
-  } | null>(null);
+  const [db2LastStatus, setDb2LastStatus] = useState<Db2MutationResponseDto | null>(null);
 
   // IMS & MQ State (/api/ims/authorizations, /api/mq/authorize, /api/ims/fraud)
-  const [imsData, setImsData] = useState<{
-    summaries: any[];
-    details: any[];
-    db2_fraud_table: any[];
-  }>({ summaries: [], details: [], db2_fraud_table: [] });
+  const [imsData, setImsData] = useState<ImsAuthorizationsResponseDto>({
+    summaries: [],
+    details: [],
+    db2_fraud_table: [],
+  });
   const [mqSwipeCard, setMqSwipeCard] = useState<string>('4859452612877065');
   const [mqSwipeAmt, setMqSwipeAmt] = useState<string>('245.50');
   const [mqSwipeMerchant, setMqSwipeMerchant] = useState<string>('STRIPE *OPENAI SAN FRANCISCO');
@@ -267,7 +186,7 @@ export function App() {
   const loadAccountDetail = async (acctId: string) => {
     const res = await fetch(`/api/accounts/${acctId}`);
     if (res.ok) {
-      const d = await res.json();
+      const d: AccountDetailResponseDto = await res.json();
       setAccountDetail(d);
       setCreditLimitEdit(d.account.credit_limit);
     }
@@ -283,21 +202,24 @@ export function App() {
         fetch('/api/ims/authorizations'),
       ]);
       if (ovRes.ok) {
-        const ov = await ovRes.json();
+        const ov: OverviewResponseDto = await ovRes.json();
         setParityReport(ov.latest_parity_report);
       }
       if (acctsRes.ok) {
-        const list = await acctsRes.json();
+        const list: AccountSummary[] = await acctsRes.json();
         setAccounts(list);
       }
       if (rejRes.ok) {
-        setRejects(await rejRes.json());
+        const rejList: DailyRejectDto[] = await rejRes.json();
+        setRejects(rejList);
       }
       if (db2Res.ok) {
-        setDb2Data(await db2Res.json());
+        const db2Catalog: Db2CatalogResponseDto = await db2Res.json();
+        setDb2Data(db2Catalog);
       }
       if (imsRes.ok) {
-        setImsData(await imsRes.json());
+        const imsAuths: ImsAuthorizationsResponseDto = await imsRes.json();
+        setImsData(imsAuths);
       }
       await loadAccountDetail(acctToLoad);
     } catch (e) {
@@ -368,7 +290,7 @@ export function App() {
       body: JSON.stringify({ confirm: 'Y' }),
     });
     if (res.ok) {
-      const data = await res.json();
+      const data: BillPayResponseDto = await res.json();
       setActionBanner(
         `⚡ COBIL00C Bill Pay Complete in ${data.execution_ms}ms (vs 54s on 3270 Green Screen): ${data.message}`
       );
@@ -391,7 +313,7 @@ export function App() {
       }),
     });
     if (res.ok) {
-      const data = await res.json();
+      const data: UpdateAccountResponseDto = await res.json();
       setActionBanner(`✅ ${data.message} — New Credit Limit: $${data.credit_limit}`);
       await loadAll(selectedAcctId);
       await sendTerminalCommand('CAUP', 'ENTER', { ACCTID: selectedAcctId });
@@ -426,7 +348,7 @@ export function App() {
       body: JSON.stringify({ action, tr_type, tr_description }),
     });
     if (res.ok) {
-      const out = await res.json();
+      const out: Db2MutationResponseDto = await res.json();
       setDb2LastStatus(out);
       setActionBanner(`🗄️ DB2 ${action} [TR_TYPE=${tr_type}]: ${out.message}`);
       await loadAll(selectedAcctId);
@@ -448,7 +370,7 @@ export function App() {
       }),
     });
     if (res.ok) {
-      const out = await res.json();
+      const out: MqAuthorizeResponseDto = await res.json();
       setActionBanner(`📡 IBM MQ / IMS COPAUA0C: ${out.message}`);
       await loadAll(selectedAcctId);
       await sendTerminalCommand('CPVS', 'ENTER', { ACCTID: out.acct_id });
@@ -472,7 +394,7 @@ export function App() {
       }),
     });
     if (res.ok) {
-      const out = await res.json();
+      const out: FraudToggleResponseDto = await res.json();
       setActionBanner(`🛡️ Fraud Alert Updated: ${out.message}`);
       await loadAll(selectedAcctId);
     }
@@ -866,9 +788,7 @@ export function App() {
           </div>
 
           {/* Optional Split-Screen Live 3270 Terminal + Modern Sistine Comparison */}
-          {viewMode === 'split' && (
-            <div className="w-full">{render3270Panel()}</div>
-          )}
+          {viewMode === 'split' && <div className="w-full">{render3270Panel()}</div>}
 
           {/* Main 12-Column Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -1072,22 +992,26 @@ export function App() {
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {(accountDetail?.category_balances || []).map((cb: any, i: number) => (
-                            <div
-                              key={i}
-                              className="glass glass-border rounded-lg p-2.5 flex items-center justify-between"
-                            >
-                              <div>
-                                <div className="text-xs font-mono font-semibold">
-                                  Type {cb.tran_type_cd} / Cat {cb.tran_cat_cd}
+                          {(accountDetail?.category_balances ?? []).map(
+                            (cb: CategoryBalanceDto, i: number) => (
+                              <div
+                                key={i}
+                                className="glass glass-border rounded-lg p-2.5 flex items-center justify-between"
+                              >
+                                <div>
+                                  <div className="text-xs font-mono font-semibold">
+                                    Type {cb.tran_type_cd} / Cat {cb.tran_cat_cd}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Rate Group: DEFAULT (12.50%)
+                                  </div>
                                 </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                  Rate Group: DEFAULT (12.50%)
+                                <div className="font-mono font-bold text-sm">
+                                  ${cb.tran_cat_bal}
                                 </div>
                               </div>
-                              <div className="font-mono font-bold text-sm">${cb.tran_cat_bal}</div>
-                            </div>
-                          ))}
+                            )
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1135,7 +1059,7 @@ export function App() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(accountDetail?.transactions || []).map((tx: any) => (
+                          {(accountDetail?.transactions ?? []).map((tx: AccountTransactionDto) => (
                             <TableRow key={tx.tran_id}>
                               <TableCell className="font-mono text-xs font-medium">
                                 {tx.tran_id}
@@ -1321,7 +1245,7 @@ export function App() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {imsData.details.slice(0, 12).map((d: any, idx: number) => (
+                          {imsData.details.slice(0, 12).map((d: ImsAuthDetailDto, idx: number) => (
                             <TableRow key={idx}>
                               <TableCell className="font-mono text-xs">{d.acct_id}</TableCell>
                               <TableCell className="font-mono text-xs">
@@ -1390,7 +1314,7 @@ export function App() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {rejects.map((r: any) => (
+                          {rejects.map((r: DailyRejectDto) => (
                             <TableRow key={r.tran_id}>
                               <TableCell className="font-mono text-xs">{r.tran_id}</TableCell>
                               <TableCell className="font-mono text-xs font-semibold">
