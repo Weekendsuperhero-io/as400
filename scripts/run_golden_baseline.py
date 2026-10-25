@@ -6,7 +6,7 @@ directly against the raw ASCII/EBCDIC-overpunch seed datasets in aws-mainframe-m
 Generates golden reference snapshots in as400/golden_baseline/ for 100.00% penny-exact Rust verification.
 """
 
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 import json
 import os
 from pathlib import Path
@@ -457,6 +457,24 @@ def run_baseline():
   total_final_bal = sum(Decimal(a['final_curr_bal']) for a in golden_accounts)
   total_interest = sum(Decimal(a['interest_charged']) for a in golden_accounts)
 
+  # Measure reproducible Naive Baseline drift vs Golden Mainframe Baseline
+  round_half_up_drifted = 0
+  round_half_up_drift_cents = Decimal('0.00')
+  for r in interest_transactions:
+    bal_d = Decimal(r['cat_bal_basis'])
+    rate_d = Decimal(r['rate_applied'])
+    cobol_int = cobol_truncate_cents((bal_d * rate_d) / Decimal('1200'))
+    naive_int = ((bal_d * rate_d) / Decimal('1200')).quantize(
+        Decimal('0.01'), rounding=ROUND_HALF_UP
+    )
+    if naive_int != cobol_int:
+      round_half_up_drifted += 1
+      round_half_up_drift_cents += abs(naive_int - cobol_int)
+
+  no_fallback_drifted = sum(
+      1 for a in golden_accounts if Decimal(a['interest_charged']) != Decimal('0.00')
+  )
+
   baseline_metrics = {
       'benchmark_name': (
           'AWS CardDemo Full Nightly JCL Batch Cycle (COMBTRAN + POSTTRAN +'
@@ -485,6 +503,12 @@ def run_baseline():
           ),
           'total_interest_charged': str(total_interest),
           'total_final_balance': str(total_final_bal),
+      },
+      'naive_single_file_baseline_comparison': {
+          'standard_round_half_up_drifted_accounts': round_half_up_drifted,
+          'standard_round_half_up_total_drift': str(round_half_up_drift_cents),
+          'missing_cross_file_default_group_drifted_accounts': no_fallback_drifted,
+          'missing_cross_file_default_group_total_drift': str(total_interest),
       },
   }
 

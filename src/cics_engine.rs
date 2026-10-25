@@ -3,10 +3,10 @@ use chrono::Utc;
 use rusqlite::{params, Connection};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use ts_rs::TS;
 use typeshare::typeshare;
 use utoipa::ToSchema;
-use std::collections::HashMap;
 
 #[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, TS, ToSchema)]
@@ -99,24 +99,32 @@ pub fn execute_cics_terminal(
                     "1" | "01" => render_account_view(conn, req, "ENTER OR VERIFY ACCOUNT ID"),
                     "2" | "02" => render_account_update(conn, req),
                     "3" | "03" => render_card_list(conn, req),
-                    "4" | "04" => render_transaction_list(conn, req),
-                    "5" | "05" => render_bill_payment(conn, req),
-                    "6" | "06" => render_db2_tx_types(conn, req),
-                    "7" | "07" => render_ims_auth_screen(conn, req),
-                    _ => render_main_menu(conn, "SELECT AN OPTION (01-07) OR ENTER TRAN ID"),
+                    "4" | "04" => render_card_update(conn, req),
+                    "5" | "05" => render_transaction_list(conn, req),
+                    "6" | "06" => render_transaction_add(conn, req),
+                    "7" | "07" => render_transaction_reports(conn, req),
+                    "8" | "08" => render_bill_payment(conn, req),
+                    "9" | "09" => render_ims_auth_screen(conn, req),
+                    "10" => render_db2_tx_types(conn, req),
+                    "11" => render_user_security(conn, req),
+                    _ => render_main_menu(conn, "SELECT AN OPTION (01-11) OR ENTER TRAN ID"),
                 }
             } else {
-                render_main_menu(conn, "SELECT AN OPTION (01-07) OR ENTER TRAN ID")
+                render_main_menu(conn, "SELECT AN OPTION (01-11) OR ENTER TRAN ID")
             }
         }
         "CADM" => render_admin_menu("CARDDEMO ADMIN MENU (COADM01C)"),
         "CAVW" => render_account_view(conn, req, ""),
         "CAUP" => render_account_update(conn, req),
-        "CCLI" | "CCDL" | "CCUP" => render_card_list(conn, req),
-        "CT00" | "CT01" | "CT02" => render_transaction_list(conn, req),
+        "CCLI" => render_card_list(conn, req),
+        "CCDL" | "CCUP" => render_card_update(conn, req),
+        "CT00" | "CT01" => render_transaction_list(conn, req),
+        "CT02" => render_transaction_add(conn, req),
+        "CR00" => render_transaction_reports(conn, req),
         "CBIL" => render_bill_payment(conn, req),
         "CTLI" | "CTTU" => render_db2_tx_types(conn, req),
         "CPVS" | "CPVD" | "CP00" => render_ims_auth_screen(conn, req),
+        "CU00" | "CU01" | "CU02" | "CU03" => render_user_security(conn, req),
         _ => render_main_menu(
             conn,
             &format!("UNKNOWN CICS TRANSACTION '{}'. SHOWING CM00.", tran),
@@ -186,24 +194,25 @@ fn render_main_menu(_conn: &Connection, msg: &str) -> Result<TerminalScreenRespo
         "TRAN: CM00      AWS MAINFRAME MODERNIZATION - CARDDEMO        DATE: 10/25/26".to_string(),
         "PROG: COMEN01C                MAIN MENU                       MAP : COMEN01 ".to_string(),
         "--------------------------------------------------------------------------------".to_string(),
-        "                                                                                ".to_string(),
         "    01. ACCOUNT VIEW               (CAVW / COACTVWC - VSAM ACCTDATA + CUSTDATA) ".to_string(),
-        "    02. ACCOUNT UPDATE             (CAUP / COACTUPC - VSAM ACCTDATA REWRITE)    ".to_string(),
-        "    03. CREDIT CARD LIST & DETAIL  (CCLI / COCRDLIC - VSAM CARDDATA + CARDAIX)  ".to_string(),
-        "    04. TRANSACTION LEDGER & ADD   (CT00 / COTRN00C - VSAM TRANSACT KSDS)       ".to_string(),
-        "    05. ONLINE BILL PAYMENT        (CBIL / COBIL00C - FULL BALANCE SETTLEMENT)  ".to_string(),
-        "    06. DB2 TRANSACTION TYPES      (CTLI / COTRTLIC - DB2 CURSOR + SQLCODE)     ".to_string(),
-        "    07. IMS PENDING AUTH & FRAUD   (CPVS / COPAUS0C - IMS PAUTSUM0 + AUTHFRDS)  ".to_string(),
-        "                                                                                ".to_string(),
+        "    02. ACCOUNT UPDATE             (CAUP / COACTUPC - VSAM ACCTDATA + CUSTDATA) ".to_string(),
+        "    03. CREDIT CARD LIST           (CCLI / COCRDLIC - VSAM CARDDATA + CARDAIX)  ".to_string(),
+        "    04. CREDIT CARD VIEW / UPDATE  (CCUP / COCRDUPC - VSAM CARDDATA REWRITE)    ".to_string(),
+        "    05. TRANSACTION LIST & VIEW    (CT00 / COTRN00C - VSAM TRANSACT KSDS)       ".to_string(),
+        "    06. TRANSACTION ADD            (CT02 / COTRN02C - POST MANUAL TRANSACTION)  ".to_string(),
+        "    07. TRANSACTION REPORTS        (CR00 / CORPT00C - MONTHLY/YEARLY/CUSTOM)    ".to_string(),
+        "    08. ONLINE BILL PAYMENT        (CBIL / COBIL00C - FULL BALANCE SETTLEMENT)  ".to_string(),
+        "    09. PENDING AUTHORIZATIONS     (CPVS / COPAUS0C - IMS PAUTSUM0 + AUTHFRDS)  ".to_string(),
+        "    10. DB2 TRANSACTION TYPES      (CTLI / COTRTLIC - DB2 CURSOR + SQLCODE)     ".to_string(),
+        "    11. USER SECURITY ADMIN        (CU00 / COUSR00C - USRSEC VSAM KSDS)         ".to_string(),
         "        PLEASE SELECT AN OPTION : [01]                                          ".to_string(),
-        "                                                                                ".to_string(),
         format!("{:<80}", format!("MESSAGE: {}", msg)),
         "ENTER=CONTINUE   PF3=SIGN OFF".to_string(),
     ];
     let fields = vec![BmsField {
         id: "OPTION".to_string(),
-        label: "Menu Option (01-07)".to_string(),
-        row: 13,
+        label: "Menu Option (01-11)".to_string(),
+        row: 15,
         col: 35,
         length: 2,
         value: "01".to_string(),
@@ -231,20 +240,22 @@ fn render_admin_menu(msg: &str) -> Result<TerminalScreenResponse, String> {
         "PROG: COADM01C              ADMINISTRATION MENU               MAP : COADM01 ".to_string(),
         "--------------------------------------------------------------------------------".to_string(),
         "    01. USER SECURITY LIST   (CU00 / COUSR00C - USRSEC VSAM KSDS)               ".to_string(),
-        "    02. DB2 TRAN TYPE MAINT  (CTLI / COTRTLIC - CARDDEMO.TRANSACTION_TYPE)      ".to_string(),
-        "    03.DB2 TRAN TYPE UPDATE  (CTTU / COTRTUPC - SQLCODE -803 / -530 / +100)     ".to_string(),
-        "    04. IMS FRAUD SUMMARY    (CPVS / COPAUS0C - DBPAUTP0 + DB2 AUTHFRDS)        ".to_string(),
-        "                                                                                ".to_string(),
+        "    02. USER SECURITY ADD    (CU01 / COUSR01C - ADD OPERATOR/ADMIN)             ".to_string(),
+        "    03. USER SECURITY UPDATE (CU02 / COUSR02C - UPDATE PASSWORD/ROLE)           ".to_string(),
+        "    04. USER SECURITY DELETE (CU03 / COUSR03C - DELETE USER RECORD)             ".to_string(),
+        "    05. DB2 TRAN TYPE MAINT  (CTLI / COTRTLIC - CARDDEMO.TRANSACTION_TYPE)      ".to_string(),
+        "    06. DB2 TRAN TYPE UPDATE (CTTU / COTRTUPC - SQLCODE -803 / -532 / +100)     ".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
         format!("{:<80}", format!("MESSAGE: {}", msg)),
         "ENTER=SELECT   PF3=SIGN OFF".to_string(),
     ];
     let fields = vec![BmsField {
         id: "OPTION".to_string(),
-        label: "Admin Option".to_string(),
-        row: 8,
+        label: "Admin Option (01-06)".to_string(),
+        row: 10,
         col: 35,
         length: 2,
-        value: "02".to_string(),
+        value: "01".to_string(),
         editable: true,
         color: "turquoise".to_string(),
     }];
@@ -619,6 +630,106 @@ fn render_card_list(
     })
 }
 
+fn render_card_update(
+    conn: &mut Connection,
+    req: &TerminalCommandRequest,
+) -> Result<TerminalScreenResponse, String> {
+    let acct_id = req
+        .inputs
+        .get("ACCTID")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "00000000001".to_string());
+
+    let (card_num, embossed, exp_date, active): (String, String, String, String) = conn
+        .query_row(
+            "SELECT card_num, embossed_name, expiration_date, active_status FROM cards WHERE acct_id = ?1 LIMIT 1",
+            params![acct_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap_or_else(|_| {
+            (
+                "0000000000000000".to_string(),
+                "UNKNOWN CARDHOLDER".to_string(),
+                "2028-12-31".to_string(),
+                "Y".to_string(),
+            )
+        });
+
+    let mut msg = format!("CARD {} LOADED (COCRDSL / COCRDUP) — PF5 TO UPDATE", card_num);
+    if req.aid_key.eq_ignore_ascii_case("PF5") {
+        let new_name = req.inputs.get("CRDNAME").cloned().unwrap_or(embossed.clone());
+        let new_stat = req
+            .inputs
+            .get("CRDSTCD")
+            .map(|s| s.trim().to_uppercase())
+            .unwrap_or(active.clone());
+        conn.execute(
+            "UPDATE cards SET embossed_name = ?1, active_status = ?2 WHERE card_num = ?3",
+            params![new_name.trim(), new_stat, card_num],
+        )
+        .ok();
+        msg = format!("CARD {} UPDATED IN VSAM CARDDATA (COCRDUPC)", card_num);
+    }
+
+    let lines = vec![
+        "TRAN: CCUP      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COCRDUP ".to_string(),
+        "PROG: COCRDUPC           CREDIT CARD DETAIL / UPDATE          VSAM: CARDDATA".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("  ACCOUNT ID      : [{}]     CARD NUMBER : {}", acct_id, card_num),
+        format!("  EMBOSSED NAME   : [{:<30}]", embossed),
+        format!("  CARD STATUS Y/N : [{}]              EXPIRY DATE : {}", active, exp_date),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("{:<80}", format!("MESSAGE: {}", msg)),
+        "ENTER=READ CARD   PF5=SAVE CARD CHANGES   PF3=MAIN MENU".to_string(),
+    ];
+    let fields = vec![
+        BmsField {
+            id: "ACCTID".to_string(),
+            label: "Account ID".to_string(),
+            row: 4,
+            col: 21,
+            length: 11,
+            value: acct_id,
+            editable: true,
+            color: "green".to_string(),
+        },
+        BmsField {
+            id: "CRDNAME".to_string(),
+            label: "Embossed Name".to_string(),
+            row: 5,
+            col: 21,
+            length: 30,
+            value: embossed,
+            editable: true,
+            color: "turquoise".to_string(),
+        },
+        BmsField {
+            id: "CRDSTCD".to_string(),
+            label: "Card Active (Y/N)".to_string(),
+            row: 6,
+            col: 21,
+            length: 1,
+            value: active,
+            editable: true,
+            color: "yellow".to_string(),
+        },
+    ];
+    Ok(TerminalScreenResponse {
+        tran_id: "CCUP".to_string(),
+        program_name: "COCRDUPC".to_string(),
+        mapset_name: "COCRDUP".to_string(),
+        map_name: "CCRDUPA".to_string(),
+        title_line_1: "AWS MAINFRAME MODERNIZATION - CARDDEMO".to_string(),
+        title_line_2: "CREDIT CARD VIEW / UPDATE (COCRDUP)".to_string(),
+        lines,
+        fields,
+        status_message: msg,
+        sqlcode: None,
+        pf_keys: "ENTER=Lookup  PF5=Save Card  PF3=Main Menu".to_string(),
+    })
+}
+
 fn render_transaction_list(
     conn: &Connection,
     req: &TerminalCommandRequest,
@@ -725,6 +836,188 @@ fn render_transaction_list(
         status_message: msg,
         sqlcode: None,
         pf_keys: "ENTER=Filter  PF3=Main Menu  PF7/PF8=Scroll".to_string(),
+    })
+}
+
+fn render_transaction_add(
+    _conn: &mut Connection,
+    req: &TerminalCommandRequest,
+) -> Result<TerminalScreenResponse, String> {
+    let acct_id = req
+        .inputs
+        .get("ACCTID")
+        .cloned()
+        .unwrap_or_else(|| "00000000001".to_string());
+    let amt = req
+        .inputs
+        .get("TRNAMT")
+        .cloned()
+        .unwrap_or_else(|| "125.00".to_string());
+    let desc = req
+        .inputs
+        .get("TDESC")
+        .cloned()
+        .unwrap_or_else(|| "MANUAL POS PURCHASE".to_string());
+    let msg = format!("ENTER DETAILS TO ADD TRANSACTION TO ACCOUNT {} (COTRN02C)", acct_id);
+    let lines = vec![
+        "TRAN: CT02      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COTRN02 ".to_string(),
+        "PROG: COTRN02C               ADD TRANSACTION                  VSAM: TRANSACT".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("  ACCOUNT ID     : [{}]     TYPE CD: [01]     CAT CD: [0001]", acct_id),
+        format!("  SOURCE         : [POS TERM  ]     AMOUNT : [{}]", amt),
+        format!("  DESCRIPTION    : [{:<35}]", desc),
+        "  MERCHANT NAME  : [ACME MAINFRAME SUPPLY         ]  CITY: [NEW YORK   ]".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("{:<80}", format!("MESSAGE: {}", msg)),
+        "ENTER=POST TRANSACTION   PF5=COPY LAST TRAN   PF3=MAIN MENU".to_string(),
+    ];
+    let fields = vec![
+        BmsField {
+            id: "ACCTID".to_string(),
+            label: "Account ID".to_string(),
+            row: 4,
+            col: 20,
+            length: 11,
+            value: acct_id,
+            editable: true,
+            color: "green".to_string(),
+        },
+        BmsField {
+            id: "TRNAMT".to_string(),
+            label: "Transaction Amount".to_string(),
+            row: 5,
+            col: 46,
+            length: 12,
+            value: amt,
+            editable: true,
+            color: "yellow".to_string(),
+        },
+        BmsField {
+            id: "TDESC".to_string(),
+            label: "Description".to_string(),
+            row: 6,
+            col: 20,
+            length: 35,
+            value: desc,
+            editable: true,
+            color: "turquoise".to_string(),
+        },
+    ];
+    Ok(TerminalScreenResponse {
+        tran_id: "CT02".to_string(),
+        program_name: "COTRN02C".to_string(),
+        mapset_name: "COTRN02".to_string(),
+        map_name: "COTRN2A".to_string(),
+        title_line_1: "AWS MAINFRAME MODERNIZATION - CARDDEMO".to_string(),
+        title_line_2: "ADD TRANSACTION (COTRN02)".to_string(),
+        lines,
+        fields,
+        status_message: msg,
+        sqlcode: None,
+        pf_keys: "ENTER=Add Tran  PF5=Copy Last  PF3=Main Menu".to_string(),
+    })
+}
+
+fn render_transaction_reports(
+    conn: &Connection,
+    req: &TerminalCommandRequest,
+) -> Result<TerminalScreenResponse, String> {
+    let rpt_type = req
+        .inputs
+        .get("RPTTYPE")
+        .cloned()
+        .unwrap_or_else(|| "YEARLY".to_string());
+    let (cnt, sum_str): (i32, String) = conn
+        .query_row(
+            "SELECT COUNT(*), COALESCE( printf('%.2f', SUM(CAST(amt AS REAL))), '0.00') FROM transactions",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap_or((0, "0.00".to_string()));
+    let msg = format!(
+        "TRANREPT JOB SUBMITTED ({}) — {} TRANSACTIONS TOTALING ${}",
+        rpt_type, cnt, sum_str
+    );
+    let lines = vec![
+        "TRAN: CR00      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : CORPT00 ".to_string(),
+        "PROG: CORPT00C             TRANSACTION REPORTS                JCL : TRANREPT".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("  REPORT MODE    : [{}]  (MONTHLY / YEARLY / CUSTOM)", rpt_type),
+        "  CUSTOM RANGE   : START [2022-01-01]  TO  END [2026-12-31]".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("  TRANSACTIONS MATCHED : {:<8}     TOTAL VOLUME : ${}", cnt, sum_str),
+        "--------------------------------------------------------------------------------".to_string(),
+        format!("{:<80}", format!("MESSAGE: {}", msg)),
+        "ENTER=GENERATE REPORT (CBTRN03C)   PF3=MAIN MENU".to_string(),
+    ];
+    let fields = vec![BmsField {
+        id: "RPTTYPE".to_string(),
+        label: "Report Mode (MONTHLY/YEARLY/CUSTOM)".to_string(),
+        row: 4,
+        col: 20,
+        length: 10,
+        value: rpt_type,
+        editable: true,
+        color: "green".to_string(),
+    }];
+    Ok(TerminalScreenResponse {
+        tran_id: "CR00".to_string(),
+        program_name: "CORPT00C".to_string(),
+        mapset_name: "CORPT00".to_string(),
+        map_name: "CORPT0A".to_string(),
+        title_line_1: "AWS MAINFRAME MODERNIZATION - CARDDEMO".to_string(),
+        title_line_2: "TRANSACTION REPORTS (CORPT00)".to_string(),
+        lines,
+        fields,
+        status_message: msg,
+        sqlcode: None,
+        pf_keys: "ENTER=Submit Report  PF3=Main Menu".to_string(),
+    })
+}
+
+fn render_user_security(
+    conn: &Connection,
+    _req: &TerminalCommandRequest,
+) -> Result<TerminalScreenResponse, String> {
+    let mut stmt = conn
+        .prepare("SELECT usr_id, first_name, last_name, usr_type FROM sec_users ORDER BY usr_id LIMIT 10")
+        .map_err(|e| e.to_string())?;
+    let users: Vec<(String, String, String, String)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+        .map_err(|e| e.to_string())?
+        .filter_map(Result::ok)
+        .collect();
+
+    let mut lines = vec![
+        "TRAN: CU00      AWS MAINFRAME MODERNIZATION - CARDDEMO        MAP : COUSR00 ".to_string(),
+        "PROG: COUSR00C              USER SECURITY LIST                VSAM: USRSEC  ".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+        "  USER ID      FIRST NAME            LAST NAME             ROLE (A=ADMIN/U=USER)".to_string(),
+        "--------------------------------------------------------------------------------".to_string(),
+    ];
+    for u in &users {
+        lines.push(format!(
+            "  {:<10}   {:<18}    {:<18}    {}",
+            u.0, u.1, u.2, u.3
+        ));
+    }
+    let msg = format!("DISPLAYING {} OPERATORS FROM USRSEC VSAM KSDS", users.len());
+    lines.push("--------------------------------------------------------------------------------".to_string());
+    lines.push(format!("{:<80}", format!("MESSAGE: {}", msg)));
+    lines.push("ENTER=REFRESH   PF3=ADMIN MENU".to_string());
+
+    Ok(TerminalScreenResponse {
+        tran_id: "CU00".to_string(),
+        program_name: "COUSR00C".to_string(),
+        mapset_name: "COUSR00".to_string(),
+        map_name: "COUSR0A".to_string(),
+        title_line_1: "AWS MAINFRAME MODERNIZATION - CARDDEMO".to_string(),
+        title_line_2: "USER SECURITY LIST (COUSR00)".to_string(),
+        lines,
+        fields: vec![],
+        status_message: msg,
+        sqlcode: None,
+        pf_keys: "ENTER=Refresh  PF3=Admin Menu".to_string(),
     })
 }
 
@@ -899,8 +1192,7 @@ fn render_db2_tx_types(
     req: &TerminalCommandRequest,
 ) -> Result<TerminalScreenResponse, String> {
     let mut sqlcode = 0i32;
-    let mut msg =
-        "DB2 CURSOR FETCH COMPLETE (SQLCODE = 0, PLAN = CARDDEMO)".to_string();
+    let mut msg = "DB2 CURSOR FETCH COMPLETE (SQLCODE = 0, PLAN = CARDDEMO)".to_string();
 
     if let Some(action) = req.inputs.get("ACTION").map(|s| s.trim().to_uppercase()) {
         let code = req
@@ -924,9 +1216,8 @@ fn render_db2_tx_types(
                 }
                 Err(_) => {
                     sqlcode = -803;
-                    msg = format!(
-                        "RECORD ALREADY EXISTS IN CARDDEMO.TRANSACTION_TYPE (SQLCODE = -803)"
-                    );
+                    msg = "RECORD ALREADY EXISTS IN CARDDEMO.TRANSACTION_TYPE (SQLCODE = -803)"
+                        .to_string();
                 }
             }
         } else if action == "U" && !code.is_empty() {
@@ -941,7 +1232,7 @@ fn render_db2_tx_types(
                 msg = format!("DB2 UPDATE COMMITTED FOR TR_TYPE={} (SQLCODE = 0)", code);
             } else {
                 sqlcode = 100;
-                msg = format!("RECORD NOT FOUND FOR UPDATE (SQLCODE = +100)");
+                msg = "RECORD NOT FOUND FOR UPDATE (SQLCODE = +100)".to_string();
             }
         } else if action == "D" && !code.is_empty() {
             match conn.execute(

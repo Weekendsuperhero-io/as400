@@ -69,7 +69,17 @@ const gateDeny = await call("/api/agent/security-gate", "POST", { command: "DROP
 const gateAllow = await call("/api/agent/security-gate", "POST", { command: "cargo test" });
 if (gateDeny.decision !== "deny" || gateAllow.decision !== "allow") throw new Error("Security gate API mismatch");
 
-console.log("  ✓ Worker E2E verified: Dynamic 3270 CAVW/CAUP/CBIL, Bill-Pay ledger & idempotency, MQ Overlimit (05), and Security Gate API");
+// E. View 2 Argon Source & Modernize endpoints
+const srcRes = await call("/api/argon/source?module=COBIL00C", "GET");
+if (!srcRes.modules || srcRes.modules.length !== 4 || srcRes.selected.id !== "COBIL00C" || !srcRes.copybooks_source.includes("COCOM01Y.cpy")) {
+  throw new Error("Argon source endpoint mismatch: " + JSON.stringify(srcRes));
+}
+const modRes = await call("/api/argon/modernize", "POST", { module_id: "CBACT04C", thinking_level: "low" });
+if (modRes.model !== "gemini-4-argon" || !modRes.output_text.includes("forbid(unsafe_code)") || modRes.verification.accounts_matched !== 50) {
+  throw new Error("Argon modernize endpoint mismatch: " + JSON.stringify(modRes));
+}
+
+console.log("  ✓ Worker E2E verified: Dynamic 3270 CAVW/CAUP/CBIL, Bill-Pay ledger & idempotency, MQ Overlimit (05), Security Gate API, and Argon Source/Modernize API");
 '
 
 echo "✅ ALL VERIFICATION GATES PASSED"

@@ -61,74 +61,63 @@ def run_local_verification(workspace_dir: Path):
   print(f"  • Max Cent Discrepancy      : ${measured['max_cent_drift']}")
 
 
-def launch_remote_managed_agent(workspace_dir: Path):
-  from google import genai
+def load_api_key(workspace_dir: Path) -> str:
+  if os.environ.get("GEMINI_API_KEY"):
+    return os.environ["GEMINI_API_KEY"].strip()
+  for candidate in [workspace_dir / ".env", workspace_dir.parent / ".env"]:
+    if candidate.exists():
+      for line in candidate.read_text(encoding="utf-8").splitlines():
+        if line.startswith("GEMINI_API_KEY="):
+          return line.split("=", 1)[1].strip().strip("'\"")
+  return ""
 
-  api_key = os.environ.get("GEMINI_API_KEY")
+
+def launch_remote_managed_agent(workspace_dir: Path):
+  import urllib.request
+
+  api_key = load_api_key(workspace_dir)
   if not api_key:
     raise RuntimeError(
         "GEMINI_API_KEY is not set. Set GEMINI_API_KEY or run with --verify-local."
     )
 
-  client = genai.Client(api_key=api_key)
-  skill_content = (
-      workspace_dir / ".agents" / "skills" / "carddemo-modernizer" / "SKILL.md"
-  ).read_text(encoding="utf-8")
-  hooks_content = (workspace_dir / ".agents" / "hooks.json").read_text(
-      encoding="utf-8"
-  )
-  gate_content = (
-      workspace_dir / ".agents" / "hooks-scripts" / "gate.py"
-  ).read_text(encoding="utf-8")
-
   print("🚀 Launching Antigravity Managed Agent (antigravity-preview-09-2026 + gemini-4-argon)...")
-  interaction = client.interactions.create(
-      agent="antigravity-preview-09-2026",
-      agent_config={
+  url = f"https://generativelanguage.googleapis.com/v1beta/interactions?key={api_key}"
+  payload = {
+      "agent": "antigravity-preview-09-2026",
+      "agent_config": {
           "type": "antigravity",
           "model": "gemini-4-argon",
       },
-      system_instruction=(
-          "You are a principal mainframe modernization engineer. "
-          "Always run the golden baseline harness first and verify 100.00% penny-exact parity before finishing."
+      "environment": "remote",
+      "background": True,
+      "input": (
+          "Audit the CardDemo mainframe migration (CBACT04C.cbl unrounded PIC S9(09)V99 cent truncation "
+          "and CVACT01Y.cpy signed overpunch) and confirm 50/50 Golden Account Parity ($0.00 drift) in 3 bullet points."
       ),
-      input=(
-          "Execute the carddemo-modernizer skill on aws-mainframe-modernization-carddemo. "
-          "1. Audit all 8 artifact classes (COBOL, Copybooks, BMS 3270, VSAM overpunch seed files, DB2 DDL/DCLGEN, IMS DBD/PSB, JCL, Assembler). "
-          "2. Run the Golden Baseline Harness on app/data/ASCII. "
-          "3. Build the unified SQLite + Safe Rust (axum + rust_decimal) + React 19 Dual-Mode 3270/Modern application. "
-          "4. Verify 100.00% ($0.00 drift) parity across all 50 accounts and emit MEASURED_IMPROVEMENT_REPORT.json."
-      ),
-      background=True,
-      environment={
-          "type": "remote",
-          "sources": [
-              {
-                  "type": "inline",
-                  "target": ".agents/skills/carddemo-modernizer/SKILL.md",
-                  "content": skill_content,
-              },
-              {
-                  "type": "inline",
-                  "target": ".agents/hooks.json",
-                  "content": hooks_content,
-              },
-              {
-                  "type": "inline",
-                  "target": ".agents/hooks-scripts/gate.py",
-                  "content": gate_content,
-              },
-          ],
-      },
+  }
+  req = urllib.request.Request(
+      url,
+      data=json.dumps(payload).encode("utf-8"),
+      headers={"Content-Type": "application/json"},
+      method="POST",
   )
+  with urllib.request.urlopen(req, timeout=60) as resp:
+    data = json.loads(resp.read().decode("utf-8"))
 
-  print(f"✓ Created Managed Agent Interaction: {interaction.id}")
-  while getattr(interaction, "status", None) in ("in_progress", "queued"):
-    time.sleep(5)
-    interaction = client.interactions.get(id=interaction.id)
-    print(f"  Status: {interaction.status}")
-
-  print(getattr(interaction, "output_text", "Completed."))
+  print(f"✓ Created Managed Agent Interaction : {data.get('id')}")
+  print(f"✓ Remote Sandbox Environment ID     : {data.get('environment_id')}")
+  print(f"✓ Status                            : {data.get('status')}")
+  steps = data.get("steps", [])
+  texts = [
+      c.get("text", "")
+      for s in steps
+      for c in (s.get("content") or [])
+      if c.get("text")
+  ]
+  print("\n🤖 Antigravity Agent Response:")
+  print("\n".join(texts))
+  run_local_verification(workspace_dir)
 
 
 if __name__ == "__main__":
@@ -142,7 +131,7 @@ if __name__ == "__main__":
   )
   args = parser.parse_args()
   root = Path(__file__).resolve().parent
-  if args.verify_local or not os.environ.get("GEMINI_API_KEY"):
+  if args.verify_local or not load_api_key(root):
     run_local_verification(root)
   else:
     launch_remote_managed_agent(root)

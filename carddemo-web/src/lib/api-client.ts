@@ -6,9 +6,12 @@
 import type {
   AccountDetailResponseDto,
   AccountSummary,
+  AddTransactionRequest,
+  AddTransactionResponseDto,
   BatchParityReport,
   BillPayRequest,
   BillPayResponseDto,
+  CardRecordDto,
   DailyRejectDto,
   Db2ActionRequest,
   Db2CatalogResponseDto,
@@ -19,12 +22,21 @@ import type {
   MqAuthorizeRequest,
   MqAuthorizeResponseDto,
   OverviewResponseDto,
+  SecUserDto,
+  SecurityGateRequest,
+  SecurityGateResponseDto,
   SqliteWalTelemetryDto,
   TerminalCommandRequest,
   TerminalScreenResponse,
+  TransactionReportRequest,
+  TransactionReportResponseDto,
   TransactionRowDto,
   UpdateAccountRequest,
   UpdateAccountResponseDto,
+  UpdateCardRequest,
+  UpdateCardResponseDto,
+  UserSecurityActionRequest,
+  UserSecurityActionResponseDto,
 } from '@/types/api';
 
 async function getJson<T>(url: string): Promise<T> {
@@ -69,7 +81,25 @@ export const cardDemoClient = {
       `/api/accounts/${encodeURIComponent(acctId)}/bill-pay`,
       req
     ),
+  listCards: () => getJson<CardRecordDto[]>('/api/cards'),
+  updateCard: (cardNum: string, req: UpdateCardRequest) =>
+    sendJson<UpdateCardRequest, UpdateCardResponseDto>(
+      'PUT',
+      `/api/cards/${encodeURIComponent(cardNum)}`,
+      req
+    ),
   listTransactions: () => getJson<TransactionRowDto[]>('/api/transactions'),
+  addTransaction: (req: AddTransactionRequest) =>
+    sendJson<AddTransactionRequest, AddTransactionResponseDto>('POST', '/api/transactions', req),
+  generateTransactionReport: (req: TransactionReportRequest) =>
+    sendJson<TransactionReportRequest, TransactionReportResponseDto>(
+      'POST',
+      '/api/reports/transactions',
+      req
+    ),
+  listUsers: () => getJson<SecUserDto[]>('/api/users'),
+  mutateUser: (req: UserSecurityActionRequest) =>
+    sendJson<UserSecurityActionRequest, UserSecurityActionResponseDto>('POST', '/api/users', req),
   listRejects: () => getJson<DailyRejectDto[]>('/api/rejects'),
   listDb2TxTypes: () => getJson<Db2CatalogResponseDto>('/api/db2/tx-types'),
   mutateDb2TxTypes: (req: Db2ActionRequest) =>
@@ -84,4 +114,10 @@ export const cardDemoClient = {
     sendJson<undefined, BatchParityReport>('POST', '/api/batch/run-nightly'),
   sendCicsTerminal: (req: TerminalCommandRequest) =>
     sendJson<TerminalCommandRequest, TerminalScreenResponse>('POST', '/api/cics/terminal', req),
+  checkSecurityGate: (req: SecurityGateRequest) =>
+    sendJson<SecurityGateRequest, SecurityGateResponseDto>(
+      'POST',
+      '/api/agent/security-gate',
+      req
+    ),
 } as const;
