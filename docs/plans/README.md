@@ -29,12 +29,14 @@ flowchart TD
     Hub --> P3["03: Managed Agents Strategy\n(Antigravity Sandbox, Hooks, Verification)"]
     Hub --> P4["04: Target Workloads & Benchmarks\n(Warehouse Inventory, Costco, Parity Proof)"]
     Hub --> P5["05: CardDemo Full-Stack Blueprint\n(COBOL, CICS, VSAM, DB2, IMS, Safe Rust)"]
+    Hub --> P6["executed-plan/EXECUTED_MIGRATION_PLAN.md\n(Executed 4-Phase Plan, 6 Landmines, 100% Parity Proof)"]
 
     P1 -.-> Demo["3-Minute Live Judging Demo"]
     P2 -.-> Engine["Dual-Mode 5250/Modern UI + API"]
     P3 -.-> Sandbox["Google-Hosted Linux Sandbox"]
     P4 -.-> Metrics["20x Speedup & 100% Parity Metric"]
     P5 -.-> RustCode["CardDemo Rust Core in as400/"]
+    P6 -.-> Verified["97.3x Speedup & $0.00 Drift Verified"]
 ```
 
 ### Plan Index
@@ -46,6 +48,7 @@ flowchart TD
 | [**03. Managed Agents Execution Strategy**](./03-managed-agents-execution-strategy.md) | How we win the **USD 5,000 Best Use of Managed Agents** prize using `antigravity-preview-09-2026`, custom `as400-modernizer` skill, safety hooks (`pre_tool_execution`), and the autonomous parity loop. |
 | [**04. Target Workloads & Benchmarks**](./04-target-workloads-and-benchmarks.md) | Real-world open-source workloads (`ibmi-inventory`, `costco-capstone`, `5250-Subfile`), test scenarios, and before-vs-after baseline metrics. |
 | [**05. CardDemo Full-Stack Migration Blueprint**](./05-carddemo-fullstack-migration-blueprint.md) | Complete multi-artifact blueprint migrating 8 mainframe technologies (COBOL, CICS, BMS 3270, VSAM, DB2, IMS, JCL, Assembler) into the safe Rust core currently implemented in this repository. |
+| [**06. Executed Migration Plan & Verification**](./executed-plan/EXECUTED_MIGRATION_PLAN.md) | Complete record of the executed 4-phase migration of AWS `CardDemo`, detailing the 6 mainframe landmines uncovered, source-to-target module mapping, and 100.00% golden parity results (`50/50` accounts, `$0.00` cent drift, `97.3x` batch speedup). |
 
 ---
 
