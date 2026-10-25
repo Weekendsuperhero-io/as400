@@ -228,6 +228,23 @@ const AS400_WINDOWS: As400WindowDef[] = [
 const POS_OVERPUNCH = ['{', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 const NEG_OVERPUNCH = ['}', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
 
+function maskCard(cardNum?: string | null): string {
+  if (!cardNum) return '•••• ----';
+  const clean = cardNum.trim();
+  if (clean.length <= 4) return clean;
+  return `•••• ${clean.slice(-4)}`;
+}
+
+function shortAcct(acctId?: string | null): string {
+  if (!acctId) return '#0001';
+  const clean = acctId.trim();
+  const num = parseInt(clean, 10);
+  if (!Number.isNaN(num)) {
+    return `#${String(num).padStart(4, '0')}`;
+  }
+  return `#${clean.slice(-4)}`;
+}
+
 function computeOverpunchDemo(rawInput: string) {
   const num = parseFloat(rawInput);
   if (!Number.isFinite(num)) {
@@ -1016,7 +1033,7 @@ export function App() {
             >
               {accounts.map((a) => (
                 <option key={a.acct_id} value={a.acct_id}>
-                  {a.acct_id} — {a.customer_name} (${a.curr_bal})
+                  {shortAcct(a.acct_id)} — {a.customer_name} ({maskCard(a.card_num)}) • ${a.curr_bal}
                 </option>
               ))}
             </select>
@@ -1288,11 +1305,11 @@ export function App() {
                     Active Account (`CAVW`)
                   </CardDescription>
                   <CardTitle className="text-lg sm:text-xl font-mono font-bold text-white truncate">
-                    #{selectedAccount?.acct_id ?? '00000000001'}
+                    {shortAcct(selectedAccount?.acct_id)}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3.5 pt-0 text-xs text-white/80 font-mono truncate">
-                  {selectedAccount?.customer_name ?? 'Loading...'} • ${selectedAccount?.curr_bal ?? '0.00'}
+                <CardContent className="px-3.5 pt-0 text-xs text-white/80 font-mono truncate" title={`${selectedAccount?.customer_name ?? ''} (${selectedAccount?.acct_id ?? ''})`}>
+                  <span className="font-semibold">{selectedAccount?.customer_name ?? 'Loading...'}</span> • ${selectedAccount?.curr_bal ?? '0.00'}
                 </CardContent>
               </Card>
 
@@ -1403,20 +1420,20 @@ export function App() {
                                   : 'bg-black/60 border-white/10 hover:border-white/30'
                               }`}
                             >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-mono font-bold text-xs text-emerald-400">
-                                  {acct.acct_id}
+                              <div className="flex items-center justify-between gap-2 min-w-0">
+                                <span className="font-mono font-bold text-xs text-emerald-400 shrink-0">
+                                  {shortAcct(acct.acct_id)}
                                 </span>
-                                <span className="text-xs font-semibold text-white truncate flex-1">
+                                <span className="text-xs font-semibold text-white truncate flex-1 min-w-0" title={acct.customer_name}>
                                   {acct.customer_name}
                                 </span>
-                                <span className="font-mono font-bold text-xs text-white">
+                                <span className="font-mono font-bold text-xs text-white shrink-0">
                                   ${acct.curr_bal}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between text-[10px] font-mono text-white/70">
-                                <span>Card: {acct.card_num}</span>
-                                <span>FICO: {acct.fico_score}</span>
+                                <span className="truncate">{maskCard(acct.card_num)}</span>
+                                <span className="shrink-0">FICO: {acct.fico_score}</span>
                               </div>
                               <Progress value={utilPct} className="h-1" />
                             </button>
@@ -1447,13 +1464,13 @@ export function App() {
                                     STATUS: {accountDetail.account.active_status}
                                   </span>
                                 </div>
-                                <CardTitle className="text-xl font-bold mt-2 text-white flex items-center gap-2">
-                                  <UserCircleIcon className="w-6 h-6 text-emerald-400" />
-                                  {selectedAccount.customer_name}
+                                <CardTitle className="text-xl font-bold mt-2 text-white flex items-center gap-2 truncate">
+                                  <UserCircleIcon className="w-6 h-6 text-emerald-400 shrink-0" />
+                                  <span className="truncate" title={selectedAccount.customer_name}>{selectedAccount.customer_name}</span>
                                 </CardTitle>
-                                <CardDescription className="font-mono text-xs text-white/75 mt-0.5">
-                                  Account #{selectedAccount.acct_id} • Primary Card:{' '}
-                                  {selectedAccount.card_num}
+                                <CardDescription className="font-mono text-xs text-white/75 mt-0.5 truncate">
+                                  Account {shortAcct(selectedAccount.acct_id)} ({selectedAccount.acct_id}) • Primary Card:{' '}
+                                  <span className="text-emerald-400 font-bold">{maskCard(selectedAccount.card_num)}</span>
                                 </CardDescription>
                               </div>
                               <div className="text-right">
@@ -1680,12 +1697,12 @@ export function App() {
                     </CardHeader>
                     <CardContent className="pt-4 space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
-                        <div className="p-4 rounded-lg bg-black border border-white/20">
+                        <div className="p-4 rounded-lg bg-black border border-white/20 min-w-0">
                           <div className="text-xs text-white/60">TARGET ACCOUNT ID</div>
-                          <div className="text-xl font-bold text-emerald-400 mt-1">
-                            #{selectedAccount?.acct_id}
+                          <div className="text-xl font-bold text-emerald-400 mt-1 truncate">
+                            {shortAcct(selectedAccount?.acct_id)} <span className="text-xs text-white/60 font-mono">({selectedAccount?.acct_id})</span>
                           </div>
-                          <div className="text-xs text-white/80 mt-1">
+                          <div className="text-xs text-white/80 mt-1 truncate" title={selectedAccount?.customer_name}>
                             {selectedAccount?.customer_name}
                           </div>
                         </div>
@@ -1761,12 +1778,12 @@ export function App() {
                                 }`}
                               >
                                 <TableCell className="font-mono text-xs text-emerald-400">
-                                  {c.acct_id}
+                                  {shortAcct(c.acct_id)}
                                 </TableCell>
-                                <TableCell className="font-mono text-xs font-bold text-white">
-                                  {c.card_num}
+                                <TableCell className="font-mono text-xs font-bold text-white whitespace-nowrap">
+                                  {maskCard(c.card_num)}
                                 </TableCell>
-                                <TableCell className="font-mono text-xs text-white">
+                                <TableCell className="font-mono text-xs text-white truncate max-w-[150px]" title={c.embossed_name}>
                                   {c.embossed_name}
                                 </TableCell>
                                 <TableCell className="font-mono text-xs text-white/80">
@@ -1803,7 +1820,12 @@ export function App() {
                               <label className="text-emerald-400 block mb-1">
                                 CARD NUMBER (`CARD-NUM` PIC X(16))
                               </label>
-                              <Input variant="glass" value={selectedCard.card_num} disabled />
+                              <div className="relative">
+                                <Input variant="glass" value={maskCard(selectedCard.card_num)} disabled className="pr-24 font-mono font-bold" />
+                                <span className="absolute right-3 top-2.5 text-[10px] text-emerald-400/80 font-mono">
+                                  LAST 4 ONLY
+                                </span>
+                              </div>
                             </div>
                             <div>
                               <label className="text-emerald-400 block mb-1">
@@ -1952,10 +1974,10 @@ export function App() {
                               <span className="text-emerald-400">TRAN-ID (PIC X(16))</span>
                               <span className="text-white font-bold">{selectedTxDetail.tran_id}</span>
                             </div>
-                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
-                              <span className="text-emerald-400">ACCT-ID / CARD-NUM</span>
-                              <span className="text-white">
-                                {selectedAcctId} / {selectedAccount?.card_num}
+                            <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between items-center gap-2">
+                              <span className="text-emerald-400 shrink-0">ACCT-ID / CARD-NUM</span>
+                              <span className="text-white truncate font-mono">
+                                {shortAcct(selectedAcctId)} / {maskCard(selectedAccount?.card_num)}
                               </span>
                             </div>
                             <div className="p-2.5 rounded bg-black border border-white/15 flex justify-between">
@@ -2171,7 +2193,7 @@ export function App() {
                                         {r.tran_id}
                                       </TableCell>
                                       <TableCell className="font-mono text-xs text-white">
-                                        {r.acct_id}
+                                        {shortAcct(r.acct_id)}
                                       </TableCell>
                                       <TableCell className="font-mono text-xs text-white/75">
                                         {r.orig_ts.slice(0, 10)}
@@ -2268,7 +2290,7 @@ export function App() {
                             {imsData.details.slice(0, 15).map((d: ImsAuthDetailDto, idx: number) => (
                               <TableRow key={idx}>
                                 <TableCell className="font-mono text-xs text-white">
-                                  {d.acct_id}
+                                  {shortAcct(d.acct_id)}
                                 </TableCell>
                                 <TableCell className="font-mono text-xs text-emerald-400">
                                   {d.auth_date_9c}:{d.auth_time_9c}
@@ -2902,7 +2924,7 @@ export function App() {
                               {(parityReport?.account_diffs ?? []).map((row: AccountParityDiff) => (
                                 <TableRow key={row.acct_id}>
                                   <TableCell className="font-mono text-xs text-emerald-400">
-                                    {row.acct_id}
+                                    {shortAcct(row.acct_id)}
                                   </TableCell>
                                   <TableCell className="font-mono text-xs text-right text-white">
                                     ${row.final_bal_golden}
